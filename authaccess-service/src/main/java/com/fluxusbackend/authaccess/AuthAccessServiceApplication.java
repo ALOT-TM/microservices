@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.fluxusbackend")
 @EnableJpaAuditing
 @EnableFeignClients(basePackages = "com.fluxusbackend.authaccess.infrastructure.clients")
 public class AuthAccessServiceApplication {
@@ -13,3 +13,4 @@ public class AuthAccessServiceApplication {
         SpringApplication.run(AuthAccessServiceApplication.class, args);
     }
 }
+

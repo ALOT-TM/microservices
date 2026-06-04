@@ -1,0 +1,14 @@
+# Gradle build matrices
+.gradle/
+build/
+!/src/main/**/build/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Log files
+*.log
