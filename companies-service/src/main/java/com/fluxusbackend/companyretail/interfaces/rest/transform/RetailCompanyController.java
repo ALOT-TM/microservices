@@ -24,11 +24,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/retail-companies")
 @Tag(name = "Retail Company", description = "Retail company administration")
-@SecurityRequirement(name = "bearer")
 public class RetailCompanyController {
 
     private final CompanyCommandService commandService;
@@ -60,10 +60,11 @@ public class RetailCompanyController {
     })
         public RetailCompany getById(@PathVariable Long companyId) {
         return queryService.handle(new GetCompanyByIdQuery(new CompanyId(companyId)))
-                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
     }
 
     @GetMapping
+    @SecurityRequirement(name = "bearer")
     @Operation(summary = "List companies")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Companies retrieved",

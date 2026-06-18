@@ -24,6 +24,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -78,8 +79,14 @@ public class AuthAccessController {
             @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content)
     })
     public UserAccountDto register(@Valid @RequestBody RegisterUserCommand command) {
-        var user = userCommandService.handle(command);
-        return UserAccountDto.from(user);
+        try {
+            var user = userCommandService.handle(command);
+            return UserAccountDto.from(user);
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), ex);
+        }
     }
 
     @PostMapping("/login")

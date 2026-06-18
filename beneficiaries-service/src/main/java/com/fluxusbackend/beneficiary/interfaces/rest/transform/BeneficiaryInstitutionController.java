@@ -143,7 +143,7 @@ public class BeneficiaryInstitutionController {
     })
     public BeneficiaryInstitution getById(@PathVariable Long beneficiaryId) {
         return queryService.handle(new GetBeneficiaryByIdQuery(new BeneficiaryId(beneficiaryId)))
-                .orElseThrow(() -> new IllegalArgumentException("Beneficiary not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Beneficiary not found"));
     }
 
     @GetMapping
