@@ -3,7 +3,6 @@ package com.fluxusbackend.beneficiaries.config;
 import com.fluxusbackend.shared.application.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,7 +29,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/error").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/beneficiary-institutions/*").permitAll()
+                        .requestMatchers(
+                                "/api/beneficiary-institutions/**",
+                                "/api/beneficiary-institution-headquarters/**",
+                                "/api/institution-types/**",
+                                "/api/countries/**",
+                                "/api/addresses/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

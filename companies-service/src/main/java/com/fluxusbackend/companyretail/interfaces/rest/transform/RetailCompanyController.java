@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -64,7 +63,6 @@ public class RetailCompanyController {
     }
 
     @GetMapping
-    @SecurityRequirement(name = "bearer")
     @Operation(summary = "List companies")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Companies retrieved",
