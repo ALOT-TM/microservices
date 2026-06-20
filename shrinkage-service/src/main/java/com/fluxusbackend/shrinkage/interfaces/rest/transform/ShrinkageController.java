@@ -82,7 +82,7 @@ public class ShrinkageController {
         return commandService.handle(new MarkShrinkageDonableCommand(new ShrinkageId(shrinkageId)));
     }
 
-    @PatchMapping("/{shrinkageId}/in-process")
+    @RequestMapping(value = "/{shrinkageId}/in-process", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     @Operation(summary = "Mark shrinkage as in process")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Shrinkage marked in process",
@@ -95,14 +95,14 @@ public class ShrinkageController {
         return commandService.handle(new MarkShrinkageInProcessCommand(new ShrinkageId(shrinkageId)));
     }
 
-    @PatchMapping("/{shrinkageId}/requested")
+    @RequestMapping(value = "/{shrinkageId}/requested", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     @Operation(summary = "Mark shrinkage as requested")
     public Shrinkage markRequested(@PathVariable Long shrinkageId) {
         authorizationService.requireActor(UserActor.RETAIL);
         return commandService.handle(new MarkShrinkageRequestedCommand(new ShrinkageId(shrinkageId)));
     }
 
-    @PatchMapping("/{shrinkageId}/not-donable")
+    @RequestMapping(value = "/{shrinkageId}/not-donable", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     @Operation(summary = "Mark shrinkage as not donable")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Shrinkage marked not donable",
@@ -115,7 +115,7 @@ public class ShrinkageController {
         return commandService.handle(new MarkShrinkageNotDonableCommand(new ShrinkageId(shrinkageId)));
     }
 
-    @PatchMapping("/{shrinkageId}/donated")
+    @RequestMapping(value = "/{shrinkageId}/donated", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     @Operation(summary = "Mark shrinkage as donated")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Shrinkage marked donated",
@@ -124,7 +124,7 @@ public class ShrinkageController {
             @ApiResponse(responseCode = "403", description = "Access denied", content = @Content)
     })
     public Shrinkage markDonated(@PathVariable Long shrinkageId) {
-        authorizationService.requireActor(UserActor.RETAIL);
+        authorizationService.requireActor(UserActor.RETAIL, UserActor.BENEFICIARY);
         return commandService.handle(new MarkShrinkageDonatedCommand(new ShrinkageId(shrinkageId)));
     }
 

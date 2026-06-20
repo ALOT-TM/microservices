@@ -75,6 +75,7 @@ public class DonationRequest extends AuditableAggregateRoot {
     }
 
     public void accept() {
+        if (status == DonationRequestStatus.ACCEPTED) return;
         if (status != DonationRequestStatus.PENDING) {
             throw new IllegalStateException("Only pending donation requests can be accepted");
         }
@@ -82,6 +83,7 @@ public class DonationRequest extends AuditableAggregateRoot {
     }
 
     public void reject() {
+        if (status == DonationRequestStatus.REJECTED) return;
         if (status != DonationRequestStatus.PENDING) {
             throw new IllegalStateException("Only pending donation requests can be rejected");
         }

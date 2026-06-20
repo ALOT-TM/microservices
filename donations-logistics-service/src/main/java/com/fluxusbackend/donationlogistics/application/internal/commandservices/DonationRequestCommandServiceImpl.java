@@ -71,7 +71,7 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 .orElseThrow(() -> new IllegalArgumentException("Donation request not found"));
 
         var shrinkageStatus = externalShrinkageService.fetchShrinkageStatus(request.getShrinkageReferenceId().value());
-        if (!"DONABLE".equals(shrinkageStatus)) {
+        if (!"DONABLE".equals(shrinkageStatus) && !"REQUESTED".equals(shrinkageStatus) && !"IN_PROCESS".equals(shrinkageStatus)) {
             throw new IllegalStateException("La merma ya no esta disponible para donacion (estado actual: " + shrinkageStatus + ")");
         }
 
@@ -84,7 +84,7 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 fromStatus.name(),
                 saved.getStatus().name()
         );
-        updateShrinkageToRequested(request.getShrinkageReferenceId().value());
+        updateShrinkageToInProcess(request.getShrinkageReferenceId().value());
         rejectOtherPendingRequests(request);
         return saved;
     }
@@ -123,10 +123,11 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
         return saved;
     }
 
-    private void updateShrinkageToRequested(Long shrinkageId) {
-        if ("DONABLE".equals(externalShrinkageService.fetchShrinkageStatus(shrinkageId))
-                && !externalShrinkageService.markShrinkageRequested(shrinkageId)) {
-            throw new IllegalStateException("Unable to mark shrinkage as requested");
+    private void updateShrinkageToInProcess(Long shrinkageId) {
+        var status = externalShrinkageService.fetchShrinkageStatus(shrinkageId);
+        if (("DONABLE".equals(status) || "REQUESTED".equals(status))
+                && !externalShrinkageService.markShrinkageInProcess(shrinkageId)) {
+            throw new IllegalStateException("Unable to mark shrinkage as in-process");
         }
     }
 

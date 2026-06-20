@@ -3,6 +3,7 @@ package com.fluxusbackend.donationlogistics.domain.model.aggregates;
 import com.fluxusbackend.donationlogistics.domain.model.enums.DonationItemStatus;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.ShrinkageReferenceId;
 import com.fluxusbackend.shared.domain.model.aggregates.AuditableAggregateRoot;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -22,6 +23,7 @@ public class DonationItem extends AuditableAggregateRoot {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "donation_id", nullable = false)
+    @JsonIgnore
     private Donation donation;
 
     @Embedded
