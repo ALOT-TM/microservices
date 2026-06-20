@@ -19,5 +19,15 @@ public interface DonationRequestRepository extends JpaRepository<DonationRequest
     @Query("select s from DonationRequest s where s.companyId.value = :companyId")
     List<DonationRequest> findByCompanyId(@Param("companyId") Long companyId);
 
+    @Query("""
+            select count(s) > 0
+            from DonationRequest s
+            where s.beneficiaryReferenceId.value = :beneficiaryId
+              and s.shrinkageReferenceId.value = :shrinkageId
+            """)
+    boolean existsByBeneficiaryIdAndShrinkageId(
+            @Param("beneficiaryId") Long beneficiaryId,
+            @Param("shrinkageId") Long shrinkageId
+    );
 }
 

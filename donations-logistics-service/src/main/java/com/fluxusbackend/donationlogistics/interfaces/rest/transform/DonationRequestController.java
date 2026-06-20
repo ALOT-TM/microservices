@@ -77,7 +77,13 @@ public class DonationRequestController {
                 beneficiaryId,
                 payload.notes()
         );
-        return commandService.handle(normalized);
+        try {
+            return commandService.handle(normalized);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage(), ex);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     public record CreateDonationRequestPayload(@NotNull Long mermaId, String notes) {

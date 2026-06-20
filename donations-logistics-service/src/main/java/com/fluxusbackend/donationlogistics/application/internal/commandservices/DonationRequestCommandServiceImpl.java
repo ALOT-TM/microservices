@@ -48,6 +48,10 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
         externalBeneficiaryService.fetchBeneficiaryById(beneficiaryRef.value())
                 .orElseThrow(() -> new IllegalArgumentException("Beneficiary not found"));
 
+        if (repository.existsByBeneficiaryIdAndShrinkageId(beneficiaryRef.value(), shrinkageRef.value())) {
+            throw new IllegalStateException("Ya existe una solicitud para esta merma");
+        }
+
         var shrinkageStatus = externalShrinkageService.fetchShrinkageStatus(shrinkageRef.value());
         if (!"DONABLE".equals(shrinkageStatus)) {
             throw new IllegalStateException("Only donable shrinkages can receive requests");
