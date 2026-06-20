@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: authaccess-service
+  config:
+    import: optional:configserver:http://localhost:8081
+
+logging:
+  level:
+    org.springframework.security: INFO
