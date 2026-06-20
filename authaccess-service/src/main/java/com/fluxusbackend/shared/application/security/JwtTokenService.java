@@ -87,16 +87,15 @@ public class JwtTokenService {
             var userId = claims.getSubject() == null ? null : Long.parseLong(claims.getSubject());
             var email = claims.get("email", String.class);
             var actorText = claims.get("actor", String.class);
-            var companyClaim = claims.get("companyId");
-            var beneficiaryClaim = claims.get("beneficiaryInstitutionId");
-            var roleIdClaim = claims.get("roleId");
             var roleName = claims.get("roleName", String.class);
             var actor = actorText == null ? null : UserActor.valueOf(actorText);
-            var companyId = companyClaim instanceof Number number ? new CompanyId(number.longValue()) : null;
-            Long beneficiaryInstitutionId = beneficiaryClaim instanceof Number number
-                    ? number.longValue()
-                    : null;
-            Long roleId = roleIdClaim instanceof Number number ? number.longValue() : null;
+            
+            Long companyLong = parseLongClaim(claims, "companyId");
+            var companyId = companyLong == null ? null : new CompanyId(companyLong);
+            
+            Long beneficiaryInstitutionId = parseLongClaim(claims, "beneficiaryInstitutionId");
+            Long roleId = parseLongClaim(claims, "roleId");
+            
             return Optional.of(new AuthInfo(userId, email, actor, companyId, beneficiaryInstitutionId, roleId, roleName));
         } catch (Exception ex) {
             return Optional.empty();
@@ -127,6 +126,19 @@ public class JwtTokenService {
             return null;
         }
         return token.startsWith("Bearer ") ? token.substring(7) : token;
+    }
+
+    private Long parseLongClaim(Claims claims, String key) {
+        Object claim = claims.get(key);
+        if (claim instanceof Number number) {
+            return number.longValue();
+        }
+        if (claim instanceof String string) {
+            try {
+                return Long.parseLong(string);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
     }
 
     private SecretKey createSigningKey(String secret) {

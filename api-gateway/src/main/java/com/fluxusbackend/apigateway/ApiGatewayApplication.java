@@ -30,7 +30,7 @@ public class ApiGatewayApplication {
     public RouterFunction<ServerResponse> customRouteLocator() {
         return route("authaccess-service").route(path("/api/auth/**"), http()).filter(lb("authaccess-service")).build()
             .and(route("companies-service").route(path("/api/retail-companies/**", "/api/addresses/**", "/api/countries/**", "/api/retail-company-headquarters/**", "/api/retail/dashboard/**"), http()).filter(lb("companies-service")).build())
-            .and(route("beneficiaries-service").route(path("/api/beneficiary-institutions/**", "/api/beneficiary-institution-headquarters/**", "/api/institution-types/**"), http()).filter(lb("beneficiaries-service")).build())
+            .and(route("beneficiaries-service").route(path("/api/beneficiary-institutions/**", "/api/beneficiary-institution-headquarters/**", "/api/institution-types/**", "/api/beneficiary-addresses/**", "/api/beneficiary-countries/**"), http()).filter(lb("beneficiaries-service")).build())
             .and(route("shrinkage-service").route(path("/api/shrinkages/**", "/api/reports/**", "/api/audit/**"), http()).filter(lb("shrinkage-service")).build())
             .and(route("donations-logistics-service").route(path("/api/donations/**", "/api/requests/**"), http()).filter(lb("donations-logistics-service")).build())
             .and(route("subscription-service").route(path("/api/plans/**", "/api/subscriptions/**"), http()).filter(lb("subscription-service")).build());

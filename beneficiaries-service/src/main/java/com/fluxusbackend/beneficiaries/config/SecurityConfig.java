@@ -33,8 +33,8 @@ public class SecurityConfig {
                                 "/api/beneficiary-institutions/**",
                                 "/api/beneficiary-institution-headquarters/**",
                                 "/api/institution-types/**",
-                                "/api/countries/**",
-                                "/api/addresses/**"
+                                "/api/beneficiary-countries/**",
+                                "/api/beneficiary-addresses/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

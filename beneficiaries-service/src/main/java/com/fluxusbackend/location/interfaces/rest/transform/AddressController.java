@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/addresses")
+@RequestMapping("/api/beneficiary-addresses")
 @Tag(name = "Addresses", description = "Address administration")
 public class AddressController {
 

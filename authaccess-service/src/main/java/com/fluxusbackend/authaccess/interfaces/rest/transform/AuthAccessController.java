@@ -25,6 +25,8 @@ import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -43,6 +45,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/auth")
 @Tag(name = "Auth & Access", description = "User registration and login")
 public class AuthAccessController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthAccessController.class);
 
     private final UserCommandService userCommandService;
     private final UserAuthenticationQueryService userAuthenticationQueryService;
@@ -79,13 +83,21 @@ public class AuthAccessController {
             @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content)
     })
     public UserAccountDto register(@Valid @RequestBody RegisterUserCommand command) {
+        log.info("[REGISTER] Received registration request: email={}, username={}, actor={}, retailCompanyId={}, beneficiaryInstitutionId={}",
+                command.email(), command.username(), command.actor(), command.retailCompanyId(), command.beneficiaryInstitutionId());
         try {
             var user = userCommandService.handle(command);
+            log.info("[REGISTER] User registered successfully: email={}", command.email());
             return UserAccountDto.from(user);
         } catch (NoSuchElementException ex) {
+            log.warn("[REGISTER] Registration failed (400): {}", ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         } catch (IllegalStateException ex) {
+            log.error("[REGISTER] Registration failed (503): {}", ex.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), ex);
+        } catch (Exception ex) {
+            log.error("[REGISTER] Unexpected error during registration: {}", ex.getMessage(), ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), ex);
         }
     }
 
@@ -99,7 +111,14 @@ public class AuthAccessController {
     public AuthenticatedUser login(@Valid @RequestBody LoginUserQuery query) {
         var user = userAuthenticationQueryService.handle(query);
         var token = jwtTokenService.generateToken(user);
-        return new AuthenticatedUser(UserAccountDto.from(user), token);
+        var dto = UserAccountDto.from(user);
+        log.info("[LOGIN] User {} logged in. CompanyId in DTO: {}", dto.getEmail(), dto.getRetailCompanyId());
+        
+        jwtTokenService.parseToken(token).ifPresent(authInfo -> {
+            log.info("[LOGIN] Token parsed info: actor={}, companyId={}", authInfo.actor(), authInfo.companyId());
+        });
+        
+        return new AuthenticatedUser(dto, token);
     }
 
     @GetMapping("/profile")
