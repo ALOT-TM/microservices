@@ -10,6 +10,8 @@ import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationsByB
 import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationsByCompanyQuery;
 import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationsByStatusQuery;
 import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationStatisticsQuery;
+import com.fluxusbackend.donationlogistics.domain.model.valueobjects.PickupConfirmationDate;
+import com.fluxusbackend.donationlogistics.interfaces.rest.dto.ConfirmDonationPickupRequest;
 import com.fluxusbackend.donationlogistics.interfaces.rest.dto.DonationStatisticDto;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.BeneficiaryReferenceId;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.DonationId;
@@ -98,6 +100,20 @@ import org.springframework.web.bind.annotation.RestController;
                 new DonationId(donationId),
                 command.pickupConfirmationDate(),
                 command.comment()
+        );
+        return commandService.handle(normalized);
+    }
+
+    @PatchMapping("/{donationId}/confirm")
+    @Operation(summary = "Confirm donation pickup by beneficiary")
+    public Donation confirmPickupFromFrontend(
+            @PathVariable Long donationId,
+            @RequestBody ConfirmDonationPickupRequest request) {
+        authorizationService.requireActor(UserActor.BENEFICIARY);
+        var normalized = new ConfirmDonationPickupCommand(
+                new DonationId(donationId),
+                new PickupConfirmationDate(request.resolvedPickupConfirmationDate()),
+                request.comment()
         );
         return commandService.handle(normalized);
     }

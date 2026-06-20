@@ -2,9 +2,14 @@ package com.fluxusbackend.beneficiary.interfaces.rest.transform;
 
 import com.fluxusbackend.beneficiary.domain.model.aggregates.BeneficiaryInstitutionHeadquarter;
 import com.fluxusbackend.beneficiary.domain.model.commands.CreateBeneficiaryInstitutionHeadquarterCommand;
+import com.fluxusbackend.beneficiary.infrastructure.clients.AddressClient;
+import com.fluxusbackend.beneficiary.infrastructure.clients.dto.AddressDto;
 import com.fluxusbackend.beneficiary.infrastructure.persistence.jpa.repositories.BeneficiaryInstitutionHeadquarterRepository;
 import com.fluxusbackend.beneficiary.infrastructure.persistence.jpa.repositories.BeneficiaryInstitutionRepository;
+import com.fluxusbackend.location.domain.model.aggregates.Address;
+import com.fluxusbackend.location.domain.model.aggregates.Country;
 import com.fluxusbackend.location.infrastructure.persistence.jpa.repositories.AddressRepository;
+import com.fluxusbackend.location.infrastructure.persistence.jpa.repositories.CountryRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,15 +35,21 @@ public class BeneficiaryInstitutionHeadquarterController {
     private final BeneficiaryInstitutionHeadquarterRepository headquarterRepository;
     private final BeneficiaryInstitutionRepository beneficiaryInstitutionRepository;
     private final AddressRepository addressRepository;
+    private final CountryRepository countryRepository;
+    private final AddressClient addressClient;
 
     public BeneficiaryInstitutionHeadquarterController(
             BeneficiaryInstitutionHeadquarterRepository headquarterRepository,
             BeneficiaryInstitutionRepository beneficiaryInstitutionRepository,
-            AddressRepository addressRepository
+            AddressRepository addressRepository,
+            CountryRepository countryRepository,
+            AddressClient addressClient
     ) {
         this.headquarterRepository = headquarterRepository;
         this.beneficiaryInstitutionRepository = beneficiaryInstitutionRepository;
         this.addressRepository = addressRepository;
+        this.countryRepository = countryRepository;
+        this.addressClient = addressClient;
     }
 
     @PostMapping
@@ -52,10 +63,39 @@ public class BeneficiaryInstitutionHeadquarterController {
     public BeneficiaryInstitutionHeadquarter create(@Valid @RequestBody CreateBeneficiaryInstitutionHeadquarterCommand command) {
         var beneficiary = beneficiaryInstitutionRepository.findById(command.beneficiaryInstitutionId())
                 .orElseThrow(() -> new IllegalArgumentException("Beneficiary institution not found"));
-        var address = addressRepository.findById(command.addressId())
-                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+        var address = resolveAddress(command.addressId());
         var headquarter = new BeneficiaryInstitutionHeadquarter(beneficiary, command.description(), address);
         return headquarterRepository.save(headquarter);
+    }
+
+    private Address resolveAddress(Long addressId) {
+        return addressRepository.findById(addressId)
+                .orElseGet(() -> copyAddressFromCompaniesService(addressId));
+    }
+
+    private Address copyAddressFromCompaniesService(Long addressId) {
+        var externalAddress = addressClient.getById(addressId);
+        var country = resolveCountry(externalAddress);
+        var address = new Address(
+                externalAddress.street1(),
+                externalAddress.street2(),
+                externalAddress.city(),
+                externalAddress.stateProvince(),
+                externalAddress.postalCode(),
+                country
+        );
+        return addressRepository.save(address);
+    }
+
+    private Country resolveCountry(AddressDto externalAddress) {
+        var countryName = externalAddress.country() != null && externalAddress.country().name() != null
+                ? externalAddress.country().name()
+                : "Peru";
+
+        return countryRepository.findAll().stream()
+                .filter(country -> country.getName().equalsIgnoreCase(countryName))
+                .findFirst()
+                .orElseGet(() -> countryRepository.save(new Country(countryName)));
     }
 
     @GetMapping("/{headquarterId}")
