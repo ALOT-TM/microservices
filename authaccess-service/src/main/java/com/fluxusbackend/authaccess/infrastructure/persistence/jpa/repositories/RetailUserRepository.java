@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 public interface RetailUserRepository extends JpaRepository<RetailUser, Long> {
     java.util.List<RetailUser> findByRetailCompanyId(Long retailCompanyId);
     java.util.Optional<RetailUser> findByUserAccount_Id(Long userAccountId);
+    long countByRole(com.fluxusbackend.authaccess.domain.model.aggregates.Role role);
 }
