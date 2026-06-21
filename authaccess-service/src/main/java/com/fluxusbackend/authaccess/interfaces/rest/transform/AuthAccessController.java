@@ -50,6 +50,7 @@ public class AuthAccessController {
     private final UserQueryService userQueryService;
     private final com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.UserAccountRepository userAccountRepository;
     private final com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RoleRepository roleRepository;
+    private final com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RolePermissionRepository rolePermissionRepository;
     private final com.fluxusbackend.authaccess.application.internal.services.AuthorizationService authorizationService;
 
     public AuthAccessController(
@@ -59,6 +60,7 @@ public class AuthAccessController {
             UserQueryService userQueryService,
             com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.UserAccountRepository userAccountRepository,
             com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RoleRepository roleRepository,
+            com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RolePermissionRepository rolePermissionRepository,
             com.fluxusbackend.authaccess.application.internal.services.AuthorizationService authorizationService
     ) {
         this.userCommandService = userCommandService;
@@ -67,6 +69,7 @@ public class AuthAccessController {
         this.userQueryService = userQueryService;
         this.userAccountRepository = userAccountRepository;
         this.roleRepository = roleRepository;
+        this.rolePermissionRepository = rolePermissionRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -98,7 +101,31 @@ public class AuthAccessController {
     })
     public AuthenticatedUser login(@Valid @RequestBody LoginUserQuery query) {
         var user = userAuthenticationQueryService.handle(query);
-        var token = jwtTokenService.generateToken(user);
+        
+        java.util.List<String> permissions = new java.util.ArrayList<>();
+        if (user.getRetailUser().isPresent() && user.getRetailUser().get().getRole() != null) {
+            var role = user.getRetailUser().get().getRole();
+            permissions = rolePermissionRepository.findByRole(role).stream().map(rp -> rp.getPermission().getDescription()).toList();
+        }
+
+        var retail = user.getRetailUser().orElse(null);
+        var beneficiary = user.getBeneficiaryUser().orElse(null);
+        com.fluxusbackend.authaccess.domain.model.enums.UserActor actor = retail != null ? com.fluxusbackend.authaccess.domain.model.enums.UserActor.RETAIL : com.fluxusbackend.authaccess.domain.model.enums.UserActor.BENEFICIARY;
+        com.fluxusbackend.shared.domain.model.valueobjects.CompanyId companyId = retail == null ? null : new com.fluxusbackend.shared.domain.model.valueobjects.CompanyId(retail.getRetailCompanyId());
+        Long beneficiaryInstitutionId = beneficiary == null ? null : beneficiary.getBeneficiaryInstitutionId();
+        Long roleId = retail == null ? null : retail.getRole().getRoleId();
+        String roleName = retail == null ? null : retail.getRole().getName();
+
+        var token = jwtTokenService.generateToken(
+                user.getUserId().value(),
+                user.getEmail().value(),
+                actor,
+                companyId,
+                beneficiaryInstitutionId,
+                roleId,
+                roleName,
+                permissions
+        );
         return new AuthenticatedUser(UserAccountDto.from(user), token);
     }
 

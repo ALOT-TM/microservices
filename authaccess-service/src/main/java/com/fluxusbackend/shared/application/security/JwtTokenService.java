@@ -36,6 +36,12 @@ public class JwtTokenService {
         Long roleId = retail == null ? null : retail.getRole().getRoleId();
         String roleName = retail == null ? null : retail.getRole().getName();
 
+        java.util.List<String> permissions = new java.util.ArrayList<>();
+        if (retail != null && retail.getRole() != null) {
+            // Note: Permissions will be fetched and passed from AuthAccessController since JwtTokenService doesn't have the repository injected.
+            // This generateToken method will just pass empty permissions if not provided explicitly.
+        }
+
         return generateToken(
                 user.getUserId().value(),
                 user.getEmail().value(),
@@ -43,7 +49,8 @@ public class JwtTokenService {
                 companyId,
                 beneficiaryInstitutionId,
                 roleId,
-                roleName
+                roleName,
+                permissions
         );
     }
 
@@ -54,7 +61,8 @@ public class JwtTokenService {
             CompanyId companyId,
             Long beneficiaryInstitutionId,
             Long roleId,
-            String roleName
+            String roleName,
+            java.util.List<String> permissions
     ) {
         var now = new Date();
         var expirationDate = new Date(now.getTime() + expirationMillis);
@@ -66,6 +74,7 @@ public class JwtTokenService {
                 .claim("beneficiaryInstitutionId", beneficiaryInstitutionId)
                 .claim("roleId", roleId)
                 .claim("roleName", roleName)
+                .claim("permissions", permissions)
                 .setIssuedAt(now)
                 .setExpiration(expirationDate)
                 .signWith(signingKey)
@@ -97,7 +106,18 @@ public class JwtTokenService {
                     ? number.longValue()
                     : null;
             Long roleId = roleIdClaim instanceof Number number ? number.longValue() : null;
-            return Optional.of(new AuthInfo(userId, email, actor, companyId, beneficiaryInstitutionId, roleId, roleName));
+            
+            Object permsObj = claims.get("permissions");
+            java.util.List<String> permissions = new java.util.ArrayList<>();
+            if (permsObj instanceof java.util.List<?> list) {
+                for (Object item : list) {
+                    if (item instanceof String str) {
+                        permissions.add(str);
+                    }
+                }
+            }
+
+            return Optional.of(new AuthInfo(userId, email, actor, companyId, beneficiaryInstitutionId, roleId, roleName, permissions));
         } catch (Exception ex) {
             return Optional.empty();
         }
@@ -140,7 +160,8 @@ public class JwtTokenService {
             CompanyId companyId,
             Long beneficiaryInstitutionId,
             Long roleId,
-            String roleName
+            String roleName,
+            java.util.List<String> permissions
     ) {
     }
 }
