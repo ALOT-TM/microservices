@@ -82,7 +82,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     private void ensureRoleHasAllPermissions(Role role) {
         var permissions = permissionRepository.findAll();
         if (permissions.isEmpty()) {
-            var defaultPermission = new Permission((short) 1, "FULL_ACCESS");
+            var defaultPermission = new Permission((short) 1, "Todo el sistema");
             permissions = java.util.List.of(permissionRepository.save(defaultPermission));
         }
         for (Permission permission : permissions) {
