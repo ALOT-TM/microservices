@@ -5,6 +5,8 @@ import com.fluxusbackend.companyretail.domain.model.commands.CreateRetailCompany
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyHeadquarterRepository;
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyRepository;
 import com.fluxusbackend.location.infrastructure.persistence.jpa.repositories.AddressRepository;
+import com.fluxusbackend.authaccess.application.internal.services.AuthorizationService;
+import com.fluxusbackend.authaccess.domain.model.enums.UserActor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,15 +34,18 @@ public class RetailCompanyHeadquarterController {
     private final RetailCompanyHeadquarterRepository headquarterRepository;
     private final RetailCompanyRepository retailCompanyRepository;
     private final AddressRepository addressRepository;
+    private final AuthorizationService authorizationService;
 
     public RetailCompanyHeadquarterController(
             RetailCompanyHeadquarterRepository headquarterRepository,
             RetailCompanyRepository retailCompanyRepository,
-            AddressRepository addressRepository
+            AddressRepository addressRepository,
+            AuthorizationService authorizationService
     ) {
         this.headquarterRepository = headquarterRepository;
         this.retailCompanyRepository = retailCompanyRepository;
         this.addressRepository = addressRepository;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping
@@ -88,6 +93,17 @@ public class RetailCompanyHeadquarterController {
                     content = @Content(schema = @Schema(implementation = RetailCompanyHeadquarter.class)))
     })
     public List<RetailCompanyHeadquarter> list() {
+        try {
+            var actor = authorizationService.getCurrentUserActor();
+            if (actor == UserActor.RETAIL) {
+                var currentCompany = authorizationService.getCurrentUserCompanyId();
+                if (currentCompany != null) {
+                    return headquarterRepository.findByCompanyId(currentCompany.value());
+                }
+            }
+        } catch (Exception e) {
+            // Fallback to returning all if not authenticated or error
+        }
         return headquarterRepository.findAll();
     }
 

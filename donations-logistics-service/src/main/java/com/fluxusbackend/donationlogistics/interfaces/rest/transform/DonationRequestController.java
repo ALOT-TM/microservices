@@ -5,6 +5,9 @@ import com.fluxusbackend.donationlogistics.domain.model.commands.AcceptDonationR
 import com.fluxusbackend.donationlogistics.domain.model.commands.CancelDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.CreateDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.RejectDonationRequestCommand;
+import com.fluxusbackend.donationlogistics.domain.model.commands.ConfirmDonationRequestPickupCommand;
+import com.fluxusbackend.donationlogistics.domain.model.valueobjects.PickupConfirmationDate;
+import com.fluxusbackend.donationlogistics.interfaces.rest.dto.ConfirmDonationPickupRequest;
 import com.fluxusbackend.donationlogistics.domain.model.queries.GetDonationRequestByIdQuery;
 import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationRequestsByBeneficiaryQuery;
 import com.fluxusbackend.donationlogistics.domain.model.queries.ListDonationRequestsByShrinkageQuery;
@@ -129,6 +132,38 @@ public class DonationRequestController {
     public DonationRequest cancel(@PathVariable Long requestId) {
         authorizationService.requireActor(UserActor.BENEFICIARY);
         return commandService.handle(new CancelDonationRequestCommand(new DonationRequestId(requestId)));
+    }
+
+    @PatchMapping("/{requestId}/confirm")
+    @Operation(summary = "Confirm donation request pickup by beneficiary")
+    public DonationRequest confirmPickup(
+            @PathVariable Long requestId,
+            @RequestBody ConfirmDonationPickupRequest payload) {
+        authorizationService.requireActor(UserActor.BENEFICIARY);
+        var beneficiaryId = authorizationService.getCurrentBeneficiaryInstitutionId();
+        if (beneficiaryId == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Beneficiary id missing");
+        }
+
+        var request = queryService.handle(new GetDonationRequestByIdQuery(new DonationRequestId(requestId)))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Donation request not found"));
+
+        if (!beneficiaryId.equals(request.getBeneficiaryReferenceId().value())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the requesting beneficiary can confirm the pickup");
+        }
+
+        var normalized = new ConfirmDonationRequestPickupCommand(
+                new DonationRequestId(requestId),
+                new PickupConfirmationDate(payload.resolvedPickupConfirmationDate()),
+                payload.comment()
+        );
+        try {
+            return commandService.handle(normalized);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage(), ex);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/company")

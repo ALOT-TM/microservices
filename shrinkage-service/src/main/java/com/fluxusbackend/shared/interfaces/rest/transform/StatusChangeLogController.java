@@ -27,13 +27,31 @@ public class StatusChangeLogController {
 
     private final StatusChangeLogRepository repository;
     private final AuthorizationService authorizationService;
+    private final com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.ShrinkageRepository shrinkageRepository;
 
     public StatusChangeLogController(
             StatusChangeLogRepository repository,
-            AuthorizationService authorizationService
+            AuthorizationService authorizationService,
+            com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.ShrinkageRepository shrinkageRepository
     ) {
         this.repository = repository;
         this.authorizationService = authorizationService;
+        this.shrinkageRepository = shrinkageRepository;
+    }
+
+    private List<StatusChangeLog> filterLogsForRetail(List<StatusChangeLog> logs) {
+        if (UserActor.RETAIL == authorizationService.getCurrentUserActor()) {
+            var currentCompany = authorizationService.getCurrentUserCompanyId();
+            if (currentCompany != null) {
+                var companyShrinkageIds = shrinkageRepository.findByCompanyIdValue(currentCompany.value()).stream()
+                        .map(com.fluxusbackend.shrinkage.domain.model.aggregates.Shrinkage::getShrinkageId)
+                        .toList();
+                return logs.stream()
+                        .filter(log -> !"SHRINKAGE".equals(log.getEntityType()) || companyShrinkageIds.contains(log.getEntityId()))
+                        .toList();
+            }
+        }
+        return logs;
     }
 
     @GetMapping
@@ -51,18 +69,18 @@ public class StatusChangeLogController {
         authorizationService.requireActor(UserActor.RETAIL, UserActor.BENEFICIARY);
         var sort = Sort.by(Sort.Direction.DESC, "changedAt");
         if (entityType != null && entityId != null) {
-            return repository.findByEntityTypeAndEntityId(entityType, entityId, sort);
+            return filterLogsForRetail(repository.findByEntityTypeAndEntityId(entityType, entityId, sort));
         }
         if (entityType != null && userId != null) {
-            return repository.findByEntityTypeAndChangedByUserId(entityType, userId, sort);
+            return filterLogsForRetail(repository.findByEntityTypeAndChangedByUserId(entityType, userId, sort));
         }
         if (entityType != null) {
-            return repository.findByEntityType(entityType, sort);
+            return filterLogsForRetail(repository.findByEntityType(entityType, sort));
         }
         if (userId != null) {
-            return repository.findByChangedByUserId(userId, sort);
+            return filterLogsForRetail(repository.findByChangedByUserId(userId, sort));
         }
-        return repository.findAll(sort);
+        return filterLogsForRetail(repository.findAll(sort));
     }
 
     @GetMapping("/{entityType}/{entityId}")
@@ -73,6 +91,6 @@ public class StatusChangeLogController {
     ) {
         authorizationService.requireActor(UserActor.RETAIL, UserActor.BENEFICIARY);
         var sort = Sort.by(Sort.Direction.DESC, "changedAt");
-        return repository.findByEntityTypeAndEntityId(entityType, entityId, sort);
+        return filterLogsForRetail(repository.findByEntityTypeAndEntityId(entityType, entityId, sort));
     }
 }

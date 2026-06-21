@@ -5,6 +5,7 @@ import com.fluxusbackend.donationlogistics.domain.model.commands.AcceptDonationR
 import com.fluxusbackend.donationlogistics.domain.model.commands.CancelDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.CreateDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.RejectDonationRequestCommand;
+import com.fluxusbackend.donationlogistics.domain.model.commands.ConfirmDonationRequestPickupCommand;
 
 public interface DonationRequestCommandService {
     DonationRequest handle(CreateDonationRequestCommand command);
@@ -14,5 +15,7 @@ public interface DonationRequestCommandService {
     DonationRequest handle(RejectDonationRequestCommand command);
 
     DonationRequest handle(CancelDonationRequestCommand command);
+
+    DonationRequest handle(ConfirmDonationRequestPickupCommand command);
 }
 
