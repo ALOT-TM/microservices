@@ -19,11 +19,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.fluxusbackend.companyretail.domain.model.commands.UpdateCompanyCommand;
 
 @RestController
 @RequestMapping("/api/retail-companies")
@@ -33,7 +35,7 @@ public class RetailCompanyController {
     private final CompanyCommandService commandService;
     private final CompanyQueryService queryService;
 
-        public RetailCompanyController(CompanyCommandService commandService, CompanyQueryService queryService) {
+    public RetailCompanyController(CompanyCommandService commandService, CompanyQueryService queryService) {
         this.commandService = commandService;
         this.queryService = queryService;
     }
@@ -46,7 +48,7 @@ public class RetailCompanyController {
                     content = @Content(schema = @Schema(implementation = RetailCompany.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content)
     })
-        public RetailCompany create(@Valid @RequestBody CreateCompanyCommand command) {
+    public RetailCompany create(@Valid @RequestBody CreateCompanyCommand command) {
         return commandService.handle(command);
     }
 
@@ -57,7 +59,7 @@ public class RetailCompanyController {
                     content = @Content(schema = @Schema(implementation = RetailCompany.class))),
             @ApiResponse(responseCode = "404", description = "Company not found", content = @Content)
     })
-        public RetailCompany getById(@PathVariable Long companyId) {
+    public RetailCompany getById(@PathVariable Long companyId) {
         return queryService.handle(new GetCompanyByIdQuery(new CompanyId(companyId)))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
     }
@@ -66,10 +68,19 @@ public class RetailCompanyController {
     @Operation(summary = "List companies")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Companies retrieved",
-                                        content = @Content(schema = @Schema(implementation = RetailCompany.class)))
+                    content = @Content(schema = @Schema(implementation = RetailCompany.class)))
     })
-        public List<RetailCompany> list() {
+    public List<RetailCompany> list() {
         return queryService.handle(new ListCompaniesQuery());
+    }
+
+    @PutMapping("/{companyId}")
+    @Operation(summary = "Update company")
+    public RetailCompany update(@PathVariable Long companyId, @Valid @RequestBody UpdateCompanyResource resource) {
+        return commandService.handle(new UpdateCompanyCommand(companyId, resource.name()));
+    }
+
+    public record UpdateCompanyResource(String name) {
     }
 }
 

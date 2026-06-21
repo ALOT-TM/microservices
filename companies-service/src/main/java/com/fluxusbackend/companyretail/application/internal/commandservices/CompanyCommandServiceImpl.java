@@ -2,6 +2,7 @@ package com.fluxusbackend.companyretail.application.internal.commandservices;
 
 import com.fluxusbackend.companyretail.domain.model.aggregates.RetailCompany;
 import com.fluxusbackend.companyretail.domain.model.commands.CreateCompanyCommand;
+import com.fluxusbackend.companyretail.domain.model.commands.UpdateCompanyCommand;
 import com.fluxusbackend.companyretail.domain.services.CompanyCommandService;
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyRepository;
 import jakarta.transaction.Transactional;
@@ -20,6 +21,15 @@ public class CompanyCommandServiceImpl implements CompanyCommandService {
     @Transactional
     public RetailCompany handle(CreateCompanyCommand command) {
         var company = new RetailCompany(command.name());
+        return repository.save(company);
+    }
+
+    @Override
+    @Transactional
+    public RetailCompany handle(UpdateCompanyCommand command) {
+        var company = repository.findById(command.id())
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+        company.updateName(command.name());
         return repository.save(company);
     }
 }
