@@ -207,8 +207,8 @@ public class AuthAccessController {
 
     @PutMapping("/users/{userId}/role")
     @SecurityRequirement(name = "bearer")
-    @PreAuthorize("hasRole('RETAIL_MANAGER')")
-    @Operation(summary = "Update user role (MANAGER only)")
+    @PreAuthorize("hasAnyRole('RETAIL_MANAGER', 'RETAIL_FULL_ACCESS')")
+    @Operation(summary = "Update user role (MANAGER or FULL_ACCESS only)")
     @Transactional
     public UserAccountDto updateUserRole(@PathVariable Long userId, @Valid @RequestBody UpdateUserRolePayload payload) {
         Long managerCompanyId = authorizationService.getCurrentUserCompanyId().value();

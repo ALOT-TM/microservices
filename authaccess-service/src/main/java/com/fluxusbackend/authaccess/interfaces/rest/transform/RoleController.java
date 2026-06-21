@@ -130,6 +130,7 @@ public class RoleController {
     @DeleteMapping("/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete role")
+    @Transactional
     public void deleteRole(@PathVariable Long roleId) {
         authorizationService.requireActor(UserActor.RETAIL);
         Long companyId = authorizationService.getCurrentUserCompanyId().value();
@@ -144,6 +145,7 @@ public class RoleController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede eliminar el rol porque está asignado a uno o más usuarios.");
         }
         
+        rolePermissionRepository.deleteByRole(role);
         roleRepository.delete(role);
     }
 
