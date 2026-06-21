@@ -22,11 +22,15 @@ public class AuthAccessCatalogSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         var permissions = List.of(
                 new Permission((short) 1, "Todo el sistema"),
-                new Permission((short) 2, "Dashboard"),
-                new Permission((short) 3, "Merma"),
-                new Permission((short) 4, "Donaciones"),
-                new Permission((short) 5, "Locales"),
-                new Permission((short) 6, "Usuarios y Roles")
+                new Permission((short) 2, "Ver Dashboard"),
+                new Permission((short) 3, "Ver Mermas"),
+                new Permission((short) 4, "Registrar Merma"),
+                new Permission((short) 5, "Ver Donaciones"),
+                new Permission((short) 6, "Gestionar Donaciones"),
+                new Permission((short) 7, "Ver Locales"),
+                new Permission((short) 8, "Gestionar Locales"),
+                new Permission((short) 9, "Ver Usuarios y Roles"),
+                new Permission((short) 10, "Gestionar Usuarios y Roles")
         );
 
         for (var perm : permissions) {
