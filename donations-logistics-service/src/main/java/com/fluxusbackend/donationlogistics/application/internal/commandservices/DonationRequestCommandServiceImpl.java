@@ -7,6 +7,7 @@ import com.fluxusbackend.donationlogistics.domain.model.commands.AcceptDonationR
 import com.fluxusbackend.donationlogistics.domain.model.commands.CancelDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.CreateDonationRequestCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.RejectDonationRequestCommand;
+import com.fluxusbackend.donationlogistics.domain.model.commands.ConfirmDonationRequestPickupCommand;
 import com.fluxusbackend.donationlogistics.domain.model.enums.DonationRequestStatus;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.BeneficiaryReferenceId;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.ShrinkageReferenceId;
@@ -71,7 +72,7 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 .orElseThrow(() -> new IllegalArgumentException("Donation request not found"));
 
         var shrinkageStatus = externalShrinkageService.fetchShrinkageStatus(request.getShrinkageReferenceId().value());
-        if (!"DONABLE".equals(shrinkageStatus)) {
+        if (!"DONABLE".equals(shrinkageStatus) && !"REQUESTED".equals(shrinkageStatus) && !"IN_PROCESS".equals(shrinkageStatus)) {
             throw new IllegalStateException("La merma ya no esta disponible para donacion (estado actual: " + shrinkageStatus + ")");
         }
 
@@ -84,7 +85,7 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 fromStatus.name(),
                 saved.getStatus().name()
         );
-        updateShrinkageToRequested(request.getShrinkageReferenceId().value());
+        updateShrinkageToInProcess(request.getShrinkageReferenceId().value());
         rejectOtherPendingRequests(request);
         return saved;
     }
@@ -123,10 +124,32 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
         return saved;
     }
 
-    private void updateShrinkageToRequested(Long shrinkageId) {
-        if ("DONABLE".equals(externalShrinkageService.fetchShrinkageStatus(shrinkageId))
-                && !externalShrinkageService.markShrinkageRequested(shrinkageId)) {
-            throw new IllegalStateException("Unable to mark shrinkage as requested");
+    @Override
+    @Transactional
+    public DonationRequest handle(ConfirmDonationRequestPickupCommand command) {
+        var request = repository.findById(command.requestId().value())
+                .orElseThrow(() -> new IllegalArgumentException("Donation request not found"));
+        var fromStatus = request.getStatus();
+        request.confirmPickup(command.pickupConfirmationDate(), command.comment().orElse(null));
+        var saved = repository.save(request);
+        var updated = externalShrinkageService.markShrinkageDonated(request.getShrinkageReferenceId().value());
+        if (!updated) {
+            throw new IllegalStateException("Unable to mark shrinkage as donated");
+        }
+        statusChangeLogService.recordChange(
+                "DONATION_REQUEST",
+                saved.getDonationRequestId().value(),
+                fromStatus.name(),
+                saved.getStatus().name()
+        );
+        return saved;
+    }
+
+    private void updateShrinkageToInProcess(Long shrinkageId) {
+        var status = externalShrinkageService.fetchShrinkageStatus(shrinkageId);
+        if (("DONABLE".equals(status) || "REQUESTED".equals(status))
+                && !externalShrinkageService.markShrinkageInProcess(shrinkageId)) {
+            throw new IllegalStateException("Unable to mark shrinkage as in-process");
         }
     }
 

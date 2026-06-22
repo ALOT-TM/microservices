@@ -5,6 +5,8 @@ import com.fluxusbackend.companyretail.domain.model.commands.CreateRetailCompany
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyHeadquarterRepository;
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyRepository;
 import com.fluxusbackend.location.infrastructure.persistence.jpa.repositories.AddressRepository;
+import com.fluxusbackend.authaccess.application.internal.services.AuthorizationService;
+import com.fluxusbackend.authaccess.domain.model.enums.UserActor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,9 +16,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -30,15 +34,18 @@ public class RetailCompanyHeadquarterController {
     private final RetailCompanyHeadquarterRepository headquarterRepository;
     private final RetailCompanyRepository retailCompanyRepository;
     private final AddressRepository addressRepository;
+    private final AuthorizationService authorizationService;
 
     public RetailCompanyHeadquarterController(
             RetailCompanyHeadquarterRepository headquarterRepository,
             RetailCompanyRepository retailCompanyRepository,
-            AddressRepository addressRepository
+            AddressRepository addressRepository,
+            AuthorizationService authorizationService
     ) {
         this.headquarterRepository = headquarterRepository;
         this.retailCompanyRepository = retailCompanyRepository;
         this.addressRepository = addressRepository;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping
@@ -86,7 +93,44 @@ public class RetailCompanyHeadquarterController {
                     content = @Content(schema = @Schema(implementation = RetailCompanyHeadquarter.class)))
     })
     public List<RetailCompanyHeadquarter> list() {
+        try {
+            var actor = authorizationService.getCurrentUserActor();
+            if (actor == UserActor.RETAIL) {
+                var currentCompany = authorizationService.getCurrentUserCompanyId();
+                if (currentCompany != null) {
+                    return headquarterRepository.findByCompanyId(currentCompany.value());
+                }
+            }
+        } catch (Exception e) {
+            // Fallback to returning all if not authenticated or error
+        }
         return headquarterRepository.findAll();
     }
+
+    @PutMapping("/{headquarterId}")
+    @Operation(summary = "Update retail company headquarter")
+    public RetailCompanyHeadquarter update(@PathVariable Long headquarterId, @Valid @RequestBody UpdateHeadquarterResource resource) {
+        var headquarter = headquarterRepository.findById(headquarterId)
+                .orElseThrow(() -> new IllegalArgumentException("Headquarter not found"));
+        var address = addressRepository.findById(resource.addressId())
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+        headquarter.update(resource.description(), address);
+        return headquarterRepository.save(headquarter);
+    }
+
+    @DeleteMapping("/{headquarterId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete retail company headquarter")
+    public void delete(@PathVariable Long headquarterId) {
+        var headquarter = headquarterRepository.findById(headquarterId)
+                .orElseThrow(() -> new IllegalArgumentException("Headquarter not found"));
+        var address = headquarter.getAddress();
+        headquarterRepository.delete(headquarter);
+        if (address != null) {
+            addressRepository.delete(address);
+        }
+    }
+
+    public record UpdateHeadquarterResource(String description, Long addressId) {}
 }
 

@@ -2,6 +2,7 @@ package com.fluxusbackend.authaccess.domain.model.dto;
 
 import com.fluxusbackend.authaccess.domain.model.aggregates.UserAccount;
 import com.fluxusbackend.authaccess.domain.model.enums.UserActor;
+import java.time.Instant;
 
 public class UserAccountDto {
 
@@ -13,6 +14,7 @@ public class UserAccountDto {
     private final Long roleId;
     private final Long beneficiaryInstitutionId;
     private final Boolean retailUserActive;
+    private final Instant createdAt;
 
     public UserAccountDto(
             Long id,
@@ -22,7 +24,8 @@ public class UserAccountDto {
             Long retailCompanyId,
             Long roleId,
             Long beneficiaryInstitutionId,
-            Boolean retailUserActive
+            Boolean retailUserActive,
+            Instant createdAt
     ) {
         this.id = id;
         this.email = email;
@@ -32,6 +35,11 @@ public class UserAccountDto {
         this.roleId = roleId;
         this.beneficiaryInstitutionId = beneficiaryInstitutionId;
         this.retailUserActive = retailUserActive;
+        this.createdAt = createdAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public Long getId() {
@@ -82,7 +90,8 @@ public class UserAccountDto {
                 retailCompanyId,
                 roleId,
                 beneficiaryInstitutionId,
-                retailUserActive
+                retailUserActive,
+                user.getCreatedAt()
         );
     }
 }

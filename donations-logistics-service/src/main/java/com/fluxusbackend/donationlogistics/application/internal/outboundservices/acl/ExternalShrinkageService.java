@@ -50,8 +50,23 @@ public class ExternalShrinkageService {
         try {
             shrinkageClient.markDonated(shrinkageId);
             return true;
-        } catch (FeignException ex) {
-            return false;
+        } catch (feign.FeignException ex) {
+            String errorMessage = "Unable to mark shrinkage as donated. Feign error: " + ex.status() + " " + ex.contentUTF8();
+            System.err.println(errorMessage);
+            ex.printStackTrace();
+            throw new IllegalStateException(errorMessage, ex);
+        }
+    }
+
+    public boolean markShrinkageInProcess(Long shrinkageId) {
+        try {
+            shrinkageClient.markInProcess(shrinkageId);
+            return true;
+        } catch (feign.FeignException ex) {
+            String errorMessage = "Unable to mark shrinkage as in-process. Feign error: " + ex.status() + " " + ex.contentUTF8();
+            System.err.println(errorMessage);
+            ex.printStackTrace();
+            throw new IllegalStateException(errorMessage, ex);
         }
     }
 }

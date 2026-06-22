@@ -143,8 +143,9 @@ public class Donation extends AuditableAggregateRoot implements CompanyScoped {
     }
 
     public void confirmPickup(PickupConfirmationDate pickupConfirmationDate, Optional<String> comment) {
-        if (status != DonationStatus.PENDING_PICKUP) {
-            throw new IllegalStateException("Donation must be pending pickup before confirmation");
+        if (this.status == DonationStatus.PICKED_UP) return;
+        if (status != DonationStatus.PENDING_PICKUP && status != DonationStatus.ASSIGNED) {
+            throw new IllegalStateException("Donation must be pending pickup or assigned before confirmation");
         }
         this.pickupConfirmationDate = Objects.requireNonNull(pickupConfirmationDate, "Pickup confirmation date is required");
         this.pickupComment = comment == null ? null : comment.orElse(null);

@@ -4,6 +4,7 @@ import com.fluxusbackend.donationlogistics.domain.model.enums.DonationRequestSta
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.BeneficiaryReferenceId;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.ShrinkageReferenceId;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.DonationRequestId;
+import com.fluxusbackend.donationlogistics.domain.model.valueobjects.PickupConfirmationDate;
 import com.fluxusbackend.shared.domain.model.aggregates.AuditableAggregateRoot;
 import com.fluxusbackend.shared.domain.model.valueobjects.CompanyId;
 import jakarta.persistence.Column;
@@ -33,6 +34,12 @@ public class DonationRequest extends AuditableAggregateRoot {
 
     @Column(name = "notes", length = 500)
     private String notes;
+
+    @Embedded
+    private PickupConfirmationDate pickupConfirmationDate;
+
+    @Column(name = "pickup_confirmation_comment", length = 250)
+    private String pickupComment;
 
     protected DonationRequest() {
     }
@@ -74,7 +81,16 @@ public class DonationRequest extends AuditableAggregateRoot {
         return notes;
     }
 
+    public java.util.Optional<PickupConfirmationDate> getPickupConfirmationDate() {
+        return java.util.Optional.ofNullable(pickupConfirmationDate);
+    }
+
+    public java.util.Optional<String> getPickupComment() {
+        return java.util.Optional.ofNullable(pickupComment);
+    }
+
     public void accept() {
+        if (status == DonationRequestStatus.ACCEPTED) return;
         if (status != DonationRequestStatus.PENDING) {
             throw new IllegalStateException("Only pending donation requests can be accepted");
         }
@@ -82,6 +98,7 @@ public class DonationRequest extends AuditableAggregateRoot {
     }
 
     public void reject() {
+        if (status == DonationRequestStatus.REJECTED) return;
         if (status != DonationRequestStatus.PENDING) {
             throw new IllegalStateException("Only pending donation requests can be rejected");
         }
@@ -100,6 +117,16 @@ public class DonationRequest extends AuditableAggregateRoot {
             throw new IllegalStateException("Only accepted donation requests can be completed");
         }
         status = DonationRequestStatus.COMPLETED;
+    }
+
+    public void confirmPickup(PickupConfirmationDate pickupConfirmationDate, String comment) {
+        if (this.status == DonationRequestStatus.COMPLETED) return;
+        if (this.status != DonationRequestStatus.ACCEPTED) {
+            throw new IllegalStateException("Only accepted donation requests can be completed");
+        }
+        this.pickupConfirmationDate = Objects.requireNonNull(pickupConfirmationDate, "Pickup confirmation date is required");
+        this.pickupComment = comment;
+        this.status = DonationRequestStatus.COMPLETED;
     }
 }
 

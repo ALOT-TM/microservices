@@ -27,6 +27,7 @@ import java.util.Locale;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -54,7 +55,7 @@ public class RetailDashboardController {
 
     @GetMapping("/stats")
     @Operation(summary = "Get retail dashboard statistics")
-    public DashboardStatsDto getStats() {
+    public DashboardStatsDto getStats(@RequestParam(value = "period", defaultValue = "Últimos 30 días") String period) {
         authorizationService.requireActor(UserActor.RETAIL);
 
         var shrinkages = getShrinkages();
@@ -63,22 +64,33 @@ public class RetailDashboardController {
         var roles = getRoles();
 
         var now = LocalDate.now();
-        int currentMonth = now.getMonthValue();
-        int currentYear = now.getYear();
+
+        LocalDate startDate = null;
+        if ("Últimos 7 días".equals(period)) {
+            startDate = now.minusDays(6);
+        } else if ("Últimos 30 días".equals(period)) {
+            startDate = now.minusDays(29);
+        } else if ("Últimos 3 meses".equals(period)) {
+            startDate = now.minusMonths(3).plusDays(1);
+        } else if ("Este año".equals(period)) {
+            startDate = LocalDate.of(now.getYear(), 1, 1);
+        }
 
         int totalShrinkageMonth = 0;
         double totalLostValue = 0;
 
         for (var shrinkage : shrinkages) {
             var createdDate = toLocalDate(shrinkage.createdAt());
-            if (createdDate.getMonthValue() == currentMonth && createdDate.getYear() == currentYear) {
+            if (startDate == null || !createdDate.isBefore(startDate)) {
                 var quantity = safeInt(shrinkage.quantity());
                 totalShrinkageMonth += quantity;
                 totalLostValue += safeDouble(shrinkage.shrinkageValue()) * quantity;
             }
         }
 
+        LocalDate finalStartDate = startDate;
         int totalDonated = donations.stream()
+                .filter(donation -> finalStartDate == null || !toLocalDate(donation.createdAt()).isBefore(finalStartDate))
                 .mapToInt(donation -> safeInt(donation.quantity()))
                 .sum();
 
@@ -94,7 +106,7 @@ public class RetailDashboardController {
                 totalDonated,
                 activeUsers,
                 configuredRoles,
-                buildMonthlyEvolution(shrinkages, donations, now)
+                buildEvolution(shrinkages, donations, now, period)
         );
     }
 
@@ -150,28 +162,109 @@ public class RetailDashboardController {
         writer.flush();
     }
 
-    private List<MonthlyData> buildMonthlyEvolution(
+    private List<MonthlyData> buildEvolution(
             List<ShrinkageDto> shrinkages,
             List<DonationDto> donations,
-            LocalDate now
+            LocalDate now,
+            String period
     ) {
         List<MonthlyData> evolution = new ArrayList<>();
-        for (int i = 5; i >= 0; i--) {
-            LocalDate monthDate = now.minusMonths(i);
-            String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
-            monthName = monthName.substring(0, 1).toUpperCase() + monthName.substring(1).replace(".", "");
+        if ("Últimos 7 días".equals(period)) {
+            for (int i = 6; i >= 0; i--) {
+                LocalDate dayDate = now.minusDays(i);
+                String dayName = dayDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                dayName = dayName.substring(0, 1).toUpperCase() + dayName.substring(1).replace(".", "") + " " + dayDate.getDayOfMonth();
 
-            int monthShrinkages = shrinkages.stream()
-                    .filter(shrinkage -> isSameMonth(toLocalDate(shrinkage.createdAt()), monthDate))
-                    .mapToInt(shrinkage -> safeInt(shrinkage.quantity()))
-                    .sum();
+                int dayShrinkages = shrinkages.stream()
+                        .filter(s -> toLocalDate(s.createdAt()).isEqual(dayDate))
+                        .mapToInt(s -> safeInt(s.quantity()))
+                        .sum();
 
-            int monthDonated = donations.stream()
-                    .filter(donation -> isSameMonth(toLocalDate(donation.createdAt()), monthDate))
-                    .mapToInt(donation -> safeInt(donation.quantity()))
-                    .sum();
+                int dayDonated = donations.stream()
+                        .filter(d -> toLocalDate(d.createdAt()).isEqual(dayDate))
+                        .mapToInt(d -> safeInt(d.quantity()))
+                        .sum();
 
-            evolution.add(new MonthlyData(monthName, monthShrinkages, monthDonated));
+                evolution.add(new MonthlyData(dayName, dayShrinkages, dayDonated));
+            }
+        } else if ("Últimos 30 días".equals(period)) {
+            for (int i = 29; i >= 0; i--) {
+                LocalDate dayDate = now.minusDays(i);
+                String label = dayDate.getDayOfMonth() + "/" + dayDate.getMonthValue();
+
+                int dayShrinkages = shrinkages.stream()
+                        .filter(s -> toLocalDate(s.createdAt()).isEqual(dayDate))
+                        .mapToInt(s -> safeInt(s.quantity()))
+                        .sum();
+
+                int dayDonated = donations.stream()
+                        .filter(d -> toLocalDate(d.createdAt()).isEqual(dayDate))
+                        .mapToInt(d -> safeInt(d.quantity()))
+                        .sum();
+
+                evolution.add(new MonthlyData(label, dayShrinkages, dayDonated));
+            }
+        } else if ("Últimos 3 meses".equals(period)) {
+            for (int i = 11; i >= 0; i--) {
+                LocalDate weekStart = now.minusWeeks(i).with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+                LocalDate weekEnd = weekStart.plusDays(6);
+                String label = weekStart.getDayOfMonth() + "/" + weekStart.getMonthValue() + " - " + weekEnd.getDayOfMonth() + "/" + weekEnd.getMonthValue();
+
+                int weekShrinkages = shrinkages.stream()
+                        .filter(s -> {
+                            LocalDate date = toLocalDate(s.createdAt());
+                            return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+                        })
+                        .mapToInt(s -> safeInt(s.quantity()))
+                        .sum();
+
+                int weekDonated = donations.stream()
+                        .filter(d -> {
+                            LocalDate date = toLocalDate(d.createdAt());
+                            return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+                        })
+                        .mapToInt(d -> safeInt(d.quantity()))
+                        .sum();
+
+                evolution.add(new MonthlyData(label, weekShrinkages, weekDonated));
+            }
+        } else if ("Este año".equals(period)) {
+            int currentMonthVal = now.getMonthValue();
+            for (int i = 1; i <= currentMonthVal; i++) {
+                LocalDate monthDate = LocalDate.of(now.getYear(), i, 1);
+                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                monthName = monthName.substring(0, 1).toUpperCase() + monthName.substring(1).replace(".", "");
+
+                int monthShrinkages = shrinkages.stream()
+                        .filter(s -> isSameMonth(toLocalDate(s.createdAt()), monthDate))
+                        .mapToInt(s -> safeInt(s.quantity()))
+                        .sum();
+
+                int monthDonated = donations.stream()
+                        .filter(d -> isSameMonth(toLocalDate(d.createdAt()), monthDate))
+                        .mapToInt(d -> safeInt(d.quantity()))
+                        .sum();
+
+                evolution.add(new MonthlyData(monthName, monthShrinkages, monthDonated));
+            }
+        } else {
+            for (int i = 11; i >= 0; i--) {
+                LocalDate monthDate = now.minusMonths(i);
+                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                monthName = monthName.substring(0, 1).toUpperCase() + monthName.substring(1).replace(".", "");
+
+                int monthShrinkages = shrinkages.stream()
+                        .filter(s -> isSameMonth(toLocalDate(s.createdAt()), monthDate))
+                        .mapToInt(s -> safeInt(s.quantity()))
+                        .sum();
+
+                int monthDonated = donations.stream()
+                        .filter(d -> isSameMonth(toLocalDate(d.createdAt()), monthDate))
+                        .mapToInt(d -> safeInt(d.quantity()))
+                        .sum();
+
+                evolution.add(new MonthlyData(monthName, monthShrinkages, monthDonated));
+            }
         }
         return evolution;
     }

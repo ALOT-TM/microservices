@@ -147,20 +147,23 @@ public class Shrinkage extends AuditableAggregateRoot implements CompanyScoped {
     }
 
     public void markInProcess() {
-        if (status != ShrinkageStatus.DONABLE) {
-            throw new IllegalStateException("Shrinkage must be DONABLE before marking in process");
+        if (status == ShrinkageStatus.IN_PROCESS) return;
+        if (status != ShrinkageStatus.DONABLE && status != ShrinkageStatus.REQUESTED) {
+            throw new IllegalStateException("Shrinkage must be DONABLE or REQUESTED before marking in process");
         }
         status = ShrinkageStatus.IN_PROCESS;
     }
 
     public void markRequested() {
-        if (status != ShrinkageStatus.DONABLE && status != ShrinkageStatus.REQUESTED) {
+        if (status == ShrinkageStatus.REQUESTED) return;
+        if (status != ShrinkageStatus.DONABLE) {
             throw new IllegalStateException("Shrinkage must be donable before marking requested");
         }
         status = ShrinkageStatus.REQUESTED;
     }
 
     public void markNotDonable() {
+        if (status == ShrinkageStatus.NOT_DONABLE) return;
         if (status != ShrinkageStatus.NONE && status != ShrinkageStatus.DONABLE) {
             throw new IllegalStateException("Shrinkage must be NONE or DONABLE before marking not donable");
         }
@@ -168,8 +171,9 @@ public class Shrinkage extends AuditableAggregateRoot implements CompanyScoped {
     }
 
     public void markDonated() {
-        if (status != ShrinkageStatus.DONABLE && status != ShrinkageStatus.REQUESTED) {
-            throw new IllegalStateException("Shrinkage must be donable before marking donated");
+        if (status == ShrinkageStatus.DONATED) return;
+        if (status != ShrinkageStatus.DONABLE && status != ShrinkageStatus.REQUESTED && status != ShrinkageStatus.IN_PROCESS) {
+            throw new IllegalStateException("Shrinkage must be donable, requested or in process before marking donated");
         }
         status = ShrinkageStatus.DONATED;
     }

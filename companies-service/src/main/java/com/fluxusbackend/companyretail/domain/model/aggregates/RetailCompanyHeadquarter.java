@@ -51,4 +51,9 @@ public class RetailCompanyHeadquarter extends AuditableAggregateRoot {
     public Address getAddress() {
         return address;
     }
+
+    public void update(String description, Address address) {
+        this.description = Objects.requireNonNull(description, "Description is required");
+        this.address = Objects.requireNonNull(address, "Address is required");
+    }
 }

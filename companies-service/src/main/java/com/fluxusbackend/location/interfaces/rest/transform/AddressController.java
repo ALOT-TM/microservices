@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -76,6 +77,24 @@ public class AddressController {
     })
     public List<Address> list() {
         return addressRepository.findAll();
+    }
+
+    @PutMapping("/{addressId}")
+    @Operation(summary = "Update address")
+    public Address update(@PathVariable Long addressId, @Valid @RequestBody CreateAddressCommand command) {
+        var address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+        var country = countryRepository.findById(command.countryId())
+                .orElseThrow(() -> new IllegalArgumentException("Country not found"));
+        address.update(
+                command.street1(),
+                command.street2(),
+                command.city(),
+                command.stateProvince(),
+                command.postalCode(),
+                country
+        );
+        return addressRepository.save(address);
     }
 }
 

@@ -36,5 +36,8 @@ public class RetailCompany extends AuditableAggregateRoot {
         return name;
     }
 
+    public void updateName(String name) {
+        this.name = java.util.Objects.requireNonNull(name, "Company name is required");
+    }
 }
 

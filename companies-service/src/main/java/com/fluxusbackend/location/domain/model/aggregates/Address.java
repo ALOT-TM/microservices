@@ -81,7 +81,19 @@ public class Address extends AuditableAggregateRoot {
         return country;
     }
 
-    public void updateStreet1(String street1) {
+    public void update(
+            String street1,
+            String street2,
+            String city,
+            String stateProvince,
+            String postalCode,
+            Country country
+    ) {
         this.street1 = Objects.requireNonNull(street1, "Street1 is required");
+        this.street2 = street2;
+        this.city = Objects.requireNonNull(city, "City is required");
+        this.stateProvince = Objects.requireNonNull(stateProvince, "State/Province is required");
+        this.postalCode = Objects.requireNonNull(postalCode, "Postal code is required");
+        this.country = Objects.requireNonNull(country, "Country is required");
     }
 }
