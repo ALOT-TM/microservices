@@ -29,7 +29,7 @@ public class StatusChangeLogService {
                 entityType,
                 entityId,
                 fromStatus,
-                toStatus,
+                .                toStatus,
                 resolveUserId().orElse(null),
                 Instant.now()
         );
