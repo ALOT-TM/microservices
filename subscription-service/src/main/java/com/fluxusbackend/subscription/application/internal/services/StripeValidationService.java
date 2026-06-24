@@ -12,11 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class StripeValidationService {
 
     public StripeValidationService() {
-        // Inicializa Stripe con tu Clave Secreta de Pruebas desde la variable de entorno
         String secretKey = System.getenv("StripeSecretKey");
         if (secretKey == null || secretKey.trim().isEmpty()) {
-            // Valor por defecto temporal para evitar fallos si no está definida en desarrollo
-            secretKey = "sk_test_tu_clave_secreta_aqui";
+            secretKey = "sk_test_key"; // Clave de prueba de Stripe
         }
         Stripe.apiKey = secretKey;
     }
@@ -36,25 +34,28 @@ public class StripeValidationService {
 
             // Analizar la respuesta
             if ("succeeded".equals(setupIntent.getStatus())) {
-                System.out.println("✅ ¡Tarjeta válida y verificada exitosamente!");
+                System.out.println("¡Tarjeta válida y verificada exitosamente!");
             } else if ("requires_action".equals(setupIntent.getStatus())) {
-                System.out.println("⚠️ La tarjeta requiere autenticación adicional (ej. 3D Secure / SMS del banco).");
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
-                    "La tarjeta requiere autenticación adicional (ej. 3D Secure / SMS del banco).");
+                String errorMsg = "La tarjeta requiere autenticación adicional (ej. 3D Secure / SMS del banco).";
+                System.out.println(errorMsg);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMsg);
             } else {
-                System.out.println("❌ Estado de verificación desconocido: " + setupIntent.getStatus());
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
-                    "Estado de verificación desconocido: " + setupIntent.getStatus());
+                String errorMsg = "Estado de verificación desconocido: " + setupIntent.getStatus();
+                System.out.println(errorMsg);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMsg);
             }
 
         } catch (StripeException e) {
             // Si la tarjeta expiró, los fondos son insuficientes para la prueba, o no existe, caerá aquí
-            System.err.println("❌ Error de validación: " + e.getMessage());
-            System.err.println("Código de error: " + e.getCode());
+            String errorMsg = "Error de validación con Stripe: " + e.getMessage();
+            String codeMsg = "Código de error: " + e.getCode();
+            System.err.println(errorMsg);
+            System.err.println(codeMsg);
             
             // Traducimos el error para mostrarlo de forma elegante en la interfaz de usuario
             String mensajeTraducido = traducirErrorStripe(e);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, mensajeTraducido, e);
+            String fullMessage = codeMsg + "\n" + mensajeTraducido;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fullMessage, e);
         }
     }
 
@@ -66,9 +67,9 @@ public class StripeValidationService {
         return switch (code) {
             case "card_declined" -> "La tarjeta ha sido declinada. Por favor, usa otra tarjeta.";
             case "expired_card" -> "La tarjeta ha expirado. Revisa la fecha de expiración.";
-            case "incorrect_cvc" -> "El código CVC es incorrecto.";
-            case "incorrect_number" -> "El número de tarjeta es incorrecto.";
-            case "processing_error" -> "Ocurrió un error al procesar la tarjeta. Inténtalo de nuevo.";
+            case "incorrect_cvc" -> "El codigo CVC es incorrecto.";
+            case "incorrect_number" -> "El numero de tarjeta es incorrecto.";
+            case "processing_error" -> "Ocurrio un error al procesar la tarjeta. Inténtalo de nuevo.";
             default -> "Error de pago (" + code + "): " + e.getMessage();
         };
     }
