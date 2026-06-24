@@ -13,9 +13,9 @@ import com.fluxusbackend.shrinkage.domain.services.ShrinkageCommandService;
 import com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.CategoryRepository;
 import com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.ShrinkageReasonRepository;
 import com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.ShrinkageRepository;
-import com.fluxusbackend.shrinkage.infrastructure.clients.RetailCompanyHeadquarterClient;
+import com.fluxusbackend.shrinkage.domain.model.aggregates.HeadquarterCache;
+import com.fluxusbackend.shrinkage.infrastructure.persistence.jpa.repositories.HeadquarterCacheRepository;
 import com.fluxusbackend.shared.application.audit.StatusChangeLogService;
-import feign.FeignException;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.NoSuchElementException;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 public class ShrinkageCommandServiceImpl implements ShrinkageCommandService {
 
     private final ShrinkageRepository repository;
-    private final RetailCompanyHeadquarterClient headquarterClient;
+    private final HeadquarterCacheRepository headquarterCacheRepository;
     private final CategoryRepository categoryRepository;
     private final ShrinkageReasonRepository shrinkageReasonRepository;
     private final com.fluxusbackend.shared.application.security.AclService aclService;
@@ -34,14 +34,14 @@ public class ShrinkageCommandServiceImpl implements ShrinkageCommandService {
 
     public ShrinkageCommandServiceImpl(
             ShrinkageRepository repository,
-            RetailCompanyHeadquarterClient headquarterClient,
+            HeadquarterCacheRepository headquarterCacheRepository,
             CategoryRepository categoryRepository,
             ShrinkageReasonRepository shrinkageReasonRepository,
             com.fluxusbackend.shared.application.security.AclService aclService,
             StatusChangeLogService statusChangeLogService
     ) {
         this.repository = repository;
-        this.headquarterClient = headquarterClient;
+        this.headquarterCacheRepository = headquarterCacheRepository;
         this.categoryRepository = categoryRepository;
         this.shrinkageReasonRepository = shrinkageReasonRepository;
         this.aclService = aclService;
@@ -79,13 +79,9 @@ public class ShrinkageCommandServiceImpl implements ShrinkageCommandService {
     }
 
     private Long getHeadquarterCompanyId(Long headquarterId) {
-        try {
-            return headquarterClient.getCompanyIdByHeadquarterId(headquarterId);
-        } catch (FeignException.NotFound ex) {
-            throw new NoSuchElementException("Retail company headquarter not found");
-        } catch (FeignException ex) {
-            throw new IllegalStateException("Companies service unavailable");
-        }
+        return headquarterCacheRepository.findById(headquarterId)
+            .map(HeadquarterCache::getCompanyId)
+            .orElseThrow(() -> new NoSuchElementException("Retail company headquarter not found in local cache"));
     }
 
     @Override

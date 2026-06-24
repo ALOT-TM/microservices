@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.MediaType;
@@ -55,6 +56,7 @@ public class RetailDashboardController {
 
     @GetMapping("/stats")
     @Operation(summary = "Get retail dashboard statistics")
+    @CircuitBreaker(name = "retailDashboard", fallbackMethod = "fallbackStats")
     public DashboardStatsDto getStats(@RequestParam(value = "period", defaultValue = "Últimos 30 días") String period) {
         authorizationService.requireActor(UserActor.RETAIL);
 
@@ -328,5 +330,10 @@ public class RetailDashboardController {
             return "\"" + text.replace("\"", "\"\"") + "\"";
         }
         return text;
+    }
+
+    public DashboardStatsDto fallbackStats(String period, Throwable t) {
+        System.err.println("Circuit breaker triggered for retail dashboard statistics. Error: " + t.getMessage());
+        return new DashboardStatsDto(0, 0.0, 0, 0, 0, new java.util.ArrayList<>());
     }
 }

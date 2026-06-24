@@ -2,6 +2,8 @@ package com.fluxusbackend.companyretail.interfaces.rest.transform;
 
 import com.fluxusbackend.companyretail.domain.model.aggregates.RetailCompanyHeadquarter;
 import com.fluxusbackend.companyretail.domain.model.commands.CreateRetailCompanyHeadquarterCommand;
+import com.fluxusbackend.companyretail.infrastructure.messaging.RabbitMQConfig;
+import com.fluxusbackend.companyretail.infrastructure.messaging.events.HeadquarterRegisteredEvent;
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyHeadquarterRepository;
 import com.fluxusbackend.companyretail.infrastructure.persistence.jpa.repositories.RetailCompanyRepository;
 import com.fluxusbackend.location.infrastructure.persistence.jpa.repositories.AddressRepository;
@@ -15,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,17 +38,20 @@ public class RetailCompanyHeadquarterController {
     private final RetailCompanyRepository retailCompanyRepository;
     private final AddressRepository addressRepository;
     private final AuthorizationService authorizationService;
+    private final RabbitTemplate rabbitTemplate;
 
     public RetailCompanyHeadquarterController(
             RetailCompanyHeadquarterRepository headquarterRepository,
             RetailCompanyRepository retailCompanyRepository,
             AddressRepository addressRepository,
-            AuthorizationService authorizationService
+            AuthorizationService authorizationService,
+            RabbitTemplate rabbitTemplate
     ) {
         this.headquarterRepository = headquarterRepository;
         this.retailCompanyRepository = retailCompanyRepository;
         this.addressRepository = addressRepository;
         this.authorizationService = authorizationService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @PostMapping
@@ -62,7 +68,13 @@ public class RetailCompanyHeadquarterController {
         var address = addressRepository.findById(command.addressId())
                 .orElseThrow(() -> new IllegalArgumentException("Address not found"));
         var headquarter = new RetailCompanyHeadquarter(retailCompany, command.description(), address);
-        return headquarterRepository.save(headquarter);
+        var saved = headquarterRepository.save(headquarter);
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.HQ_ROUTING_KEY,
+                new HeadquarterRegisteredEvent(saved.getRetailCompanyHeadquarterId(), retailCompany.getId())
+        );
+        return saved;
     }
 
     @GetMapping("/{headquarterId}")
