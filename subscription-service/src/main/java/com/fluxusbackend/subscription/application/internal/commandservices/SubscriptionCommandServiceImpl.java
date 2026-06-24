@@ -1,5 +1,6 @@
 package com.fluxusbackend.subscription.application.internal.commandservices;
 
+import com.fluxusbackend.subscription.application.internal.services.StripeValidationService;
 import com.fluxusbackend.subscription.domain.model.aggregates.Plan;
 import com.fluxusbackend.subscription.domain.model.aggregates.Subscription;
 import com.fluxusbackend.subscription.domain.model.commands.CreateSubscriptionCommand;
@@ -21,20 +22,26 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
     private final SubscriptionRepository subscriptionRepository;
     private final RetailCompanyClient retailCompanyClient;
     private final PlanRepository planRepository;
+    private final StripeValidationService stripeValidationService;
 
     public SubscriptionCommandServiceImpl(
             SubscriptionRepository subscriptionRepository,
             RetailCompanyClient retailCompanyClient,
-            PlanRepository planRepository
+            PlanRepository planRepository,
+            StripeValidationService stripeValidationService
     ) {
         this.subscriptionRepository = subscriptionRepository;
         this.retailCompanyClient = retailCompanyClient;
         this.planRepository = planRepository;
+        this.stripeValidationService = stripeValidationService;
     }
 
     @Override
     @Transactional
     public Subscription handle(CreateSubscriptionCommand command) {
+        // Validar tarjeta usando el servicio de Stripe
+        stripeValidationService.verificarTarjeta(command.paymentMethodId());
+
         requireRetailCompany(command.retailCompanyId());
         Plan plan = planRepository.findById(command.planId())
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
