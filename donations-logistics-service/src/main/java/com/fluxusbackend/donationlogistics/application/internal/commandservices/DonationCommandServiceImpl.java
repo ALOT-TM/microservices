@@ -7,10 +7,13 @@ import com.fluxusbackend.donationlogistics.domain.model.commands.ConfirmDonation
 import com.fluxusbackend.donationlogistics.domain.model.commands.CreateDonationCommand;
 import com.fluxusbackend.donationlogistics.domain.model.commands.MarkDonationPendingPickupCommand;
 import com.fluxusbackend.donationlogistics.domain.services.DonationCommandService;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.RabbitMQConfig;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.events.DonationPickupConfirmedEvent;
 import com.fluxusbackend.donationlogistics.infrastructure.persistence.jpa.repositories.DonationRepository;
 import com.fluxusbackend.shared.application.audit.StatusChangeLogService;
 import jakarta.transaction.Transactional;
 import java.util.NoSuchElementException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,19 +24,22 @@ public class DonationCommandServiceImpl implements DonationCommandService {
     private final ExternalBeneficiaryService externalBeneficiaryService;
     private final com.fluxusbackend.shared.application.security.AclService aclService;
     private final StatusChangeLogService statusChangeLogService;
+    private final RabbitTemplate rabbitTemplate;
 
     public DonationCommandServiceImpl(
             DonationRepository repository,
             ExternalShrinkageService externalShrinkageService,
             ExternalBeneficiaryService externalBeneficiaryService,
             com.fluxusbackend.shared.application.security.AclService aclService,
-            StatusChangeLogService statusChangeLogService
+            StatusChangeLogService statusChangeLogService,
+            RabbitTemplate rabbitTemplate
     ) {
         this.repository = repository;
         this.externalShrinkageService = externalShrinkageService;
         this.externalBeneficiaryService = externalBeneficiaryService;
         this.aclService = aclService;
         this.statusChangeLogService = statusChangeLogService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Override
@@ -100,10 +106,14 @@ public class DonationCommandServiceImpl implements DonationCommandService {
         var fromStatus = donation.getStatus();
         donation.confirmPickup(command.pickupConfirmationDate(), command.comment());
         repository.save(donation);
-        var updated = externalShrinkageService.markShrinkageDonated(donation.getShrinkageReferenceId().value());
-        if (!updated) {
-            throw new IllegalStateException("Unable to mark shrinkage as donated");
-        }
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.PICKUP_ROUTING_KEY,
+                new DonationPickupConfirmedEvent(
+                        donation.getShrinkageReferenceId().value(),
+                        command.pickupConfirmationDate().value()
+                )
+        );
         statusChangeLogService.recordChange(
                 "DONATION",
                 donation.getDonationId().value(),

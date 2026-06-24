@@ -12,9 +12,12 @@ import com.fluxusbackend.donationlogistics.domain.model.enums.DonationRequestSta
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.BeneficiaryReferenceId;
 import com.fluxusbackend.donationlogistics.domain.model.valueobjects.ShrinkageReferenceId;
 import com.fluxusbackend.donationlogistics.domain.services.DonationRequestCommandService;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.RabbitMQConfig;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.events.DonationRequestAcceptedEvent;
 import com.fluxusbackend.donationlogistics.infrastructure.persistence.jpa.repositories.DonationRequestRepository;
 import com.fluxusbackend.shared.application.audit.StatusChangeLogService;
 import com.fluxusbackend.shared.domain.model.valueobjects.CompanyId;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,17 +28,20 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
     private final ExternalShrinkageService externalShrinkageService;
     private final ExternalBeneficiaryService externalBeneficiaryService;
     private final StatusChangeLogService statusChangeLogService;
+    private final RabbitTemplate rabbitTemplate;
 
     public DonationRequestCommandServiceImpl(
             DonationRequestRepository repository,
             ExternalShrinkageService externalShrinkageService,
             ExternalBeneficiaryService externalBeneficiaryService,
-            StatusChangeLogService statusChangeLogService
+            StatusChangeLogService statusChangeLogService,
+            RabbitTemplate rabbitTemplate
     ) {
         this.repository = repository;
         this.externalShrinkageService = externalShrinkageService;
         this.externalBeneficiaryService = externalBeneficiaryService;
         this.statusChangeLogService = statusChangeLogService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Override
@@ -85,7 +91,11 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 fromStatus.name(),
                 saved.getStatus().name()
         );
-        updateShrinkageToInProcess(request.getShrinkageReferenceId().value());
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.REQUEST_ROUTING_KEY,
+                new DonationRequestAcceptedEvent(request.getShrinkageReferenceId().value())
+        );
         rejectOtherPendingRequests(request);
         return saved;
     }
@@ -145,13 +155,6 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
         return saved;
     }
 
-    private void updateShrinkageToInProcess(Long shrinkageId) {
-        var status = externalShrinkageService.fetchShrinkageStatus(shrinkageId);
-        if (("DONABLE".equals(status) || "REQUESTED".equals(status))
-                && !externalShrinkageService.markShrinkageInProcess(shrinkageId)) {
-            throw new IllegalStateException("Unable to mark shrinkage as in-process");
-        }
-    }
 
     private void rejectOtherPendingRequests(DonationRequest acceptedRequest) {
         var otherRequests = repository.findByShrinkageId(acceptedRequest.getShrinkageReferenceId().value());
