@@ -30,4 +30,7 @@ Start-Process powershell -ArgumentList "-NoExit -Command `"cd `"$PSScriptRoot\do
 Write-Host "Iniciando Subscription Service..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit -Command `"cd `"$PSScriptRoot\subscription-service`"; `$env:JAVA_HOME='C:\Program Files\Java\jdk-24'; .\gradlew bootRun`"" -WindowStyle Normal
 
+Write-Host "Iniciando Notification Service..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit -Command `"cd `"$PSScriptRoot\notification-service`"; `$env:JAVA_HOME='C:\Program Files\Java\jdk-24'; .\gradlew bootRun`"" -WindowStyle Normal
+
 Write-Host "¡Todos los servicios de backend han sido lanzados en ventanas separadas usando Java 24!" -ForegroundColor Green

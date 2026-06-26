@@ -30,6 +30,12 @@ public class UserAccount extends AuditableAggregateRoot {
     @Column(name = "username", nullable = false, length = 100)
     private String username;
 
+    @Column(name = "password_reset_token", length = 100)
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expires_at")
+    private java.time.LocalDateTime passwordResetTokenExpiresAt;
+
     @OneToOne(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private RetailUser retailUser;
 
@@ -85,5 +91,30 @@ public class UserAccount extends AuditableAggregateRoot {
 
     public void updatePassword(PasswordHash passwordHash) {
         this.passwordHash = Objects.requireNonNull(passwordHash, "Password hash is required");
+    }
+
+    public String getPasswordResetToken() {
+        return passwordResetToken;
+    }
+
+    public java.time.LocalDateTime getPasswordResetTokenExpiresAt() {
+        return passwordResetTokenExpiresAt;
+    }
+
+    public void generatePasswordResetToken() {
+        this.passwordResetToken = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        this.passwordResetTokenExpiresAt = java.time.LocalDateTime.now().plusMinutes(10);
+    }
+
+    public void clearPasswordResetToken() {
+        this.passwordResetToken = null;
+        this.passwordResetTokenExpiresAt = null;
+    }
+
+    public boolean isPasswordResetTokenValid(String token) {
+        if (this.passwordResetToken == null || !this.passwordResetToken.equals(token)) {
+            return false;
+        }
+        return this.passwordResetTokenExpiresAt != null && this.passwordResetTokenExpiresAt.isAfter(java.time.LocalDateTime.now());
     }
 }

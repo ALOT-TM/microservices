@@ -38,6 +38,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.fluxusbackend.authaccess.domain.model.dto.ForgotPasswordRequest;
+import com.fluxusbackend.authaccess.domain.model.dto.VerifyTokenRequest;
+import com.fluxusbackend.authaccess.domain.model.dto.ResetPasswordRequest;
+import com.fluxusbackend.authaccess.domain.model.dto.NotificationEvent;
+import com.fluxusbackend.authaccess.infrastructure.messaging.RabbitMQConfig;
+import com.fluxusbackend.authaccess.domain.model.valueobjects.PasswordHash;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -52,6 +61,8 @@ public class AuthAccessController {
     private final com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RoleRepository roleRepository;
     private final com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RolePermissionRepository rolePermissionRepository;
     private final com.fluxusbackend.authaccess.application.internal.services.AuthorizationService authorizationService;
+    private final RabbitTemplate rabbitTemplate;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthAccessController(
             UserCommandService userCommandService,
@@ -61,7 +72,9 @@ public class AuthAccessController {
             com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.UserAccountRepository userAccountRepository,
             com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RoleRepository roleRepository,
             com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RolePermissionRepository rolePermissionRepository,
-            com.fluxusbackend.authaccess.application.internal.services.AuthorizationService authorizationService
+            com.fluxusbackend.authaccess.application.internal.services.AuthorizationService authorizationService,
+            RabbitTemplate rabbitTemplate,
+            PasswordEncoder passwordEncoder
     ) {
         this.userCommandService = userCommandService;
         this.userAuthenticationQueryService = userAuthenticationQueryService;
@@ -71,6 +84,8 @@ public class AuthAccessController {
         this.roleRepository = roleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.authorizationService = authorizationService;
+        this.rabbitTemplate = rabbitTemplate;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/register")
@@ -236,5 +251,69 @@ public class AuthAccessController {
     }
 
     public record UpdateUserRolePayload(Long roleId) {
+    }
+
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Request password reset token")
+    @Transactional
+    public Map<String, String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        var user = userAccountRepository.findByEmailValue(request.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado con ese correo electrónico."));
+
+        user.generatePasswordResetToken();
+        userAccountRepository.save(user);
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                    RabbitMQConfig.RESET_ROUTING_KEY,
+                    new NotificationEvent(
+                            user.getEmail().value(),
+                            "PASSWORD_RECOVERY",
+                            null,
+                            null,
+                            Map.of("token", user.getPasswordResetToken(), "username", user.getUsername())
+                    )
+            );
+        } catch (Exception e) {
+            System.err.println("Error publishing password reset event to RabbitMQ: " + e.getMessage());
+        }
+
+        return Map.of("message", "Token de recuperación enviado al correo electrónico.");
+    }
+
+    @PostMapping("/verify-token")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Verify password reset token")
+    public Map<String, String> verifyToken(@Valid @RequestBody VerifyTokenRequest request) {
+        var user = userAccountRepository.findByEmailValue(request.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado."));
+
+        if (!user.isPasswordResetTokenValid(request.token())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El token es inválido o ha expirado.");
+        }
+
+        return Map.of("message", "Token verificado con éxito.");
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Reset password using token")
+    @Transactional
+    public Map<String, String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        var user = userAccountRepository.findByEmailValue(request.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado."));
+
+        if (!user.isPasswordResetTokenValid(request.token())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El token es inválido o ha expirado.");
+        }
+
+        var newHash = new PasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.updatePassword(newHash);
+        user.clearPasswordResetToken();
+        userAccountRepository.save(user);
+
+        return Map.of("message", "Contraseña restablecida con éxito.");
     }
 }
