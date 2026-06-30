@@ -174,7 +174,7 @@ public class RetailDashboardController {
         if ("Últimos 7 días".equals(period)) {
             for (int i = 6; i >= 0; i--) {
                 LocalDate dayDate = now.minusDays(i);
-                String dayName = dayDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                String dayName = dayDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.of("es", "PE"));
                 dayName = dayName.substring(0, 1).toUpperCase() + dayName.substring(1).replace(".", "") + " " + dayDate.getDayOfMonth();
 
                 int dayShrinkages = shrinkages.stream()
@@ -234,7 +234,7 @@ public class RetailDashboardController {
             int currentMonthVal = now.getMonthValue();
             for (int i = 1; i <= currentMonthVal; i++) {
                 LocalDate monthDate = LocalDate.of(now.getYear(), i, 1);
-                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "PE"));
                 monthName = monthName.substring(0, 1).toUpperCase() + monthName.substring(1).replace(".", "");
 
                 int monthShrinkages = shrinkages.stream()
@@ -252,7 +252,7 @@ public class RetailDashboardController {
         } else {
             for (int i = 11; i >= 0; i--) {
                 LocalDate monthDate = now.minusMonths(i);
-                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "PE"));
+                String monthName = monthDate.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "PE"));
                 monthName = monthName.substring(0, 1).toUpperCase() + monthName.substring(1).replace(".", "");
 
                 int monthShrinkages = shrinkages.stream()

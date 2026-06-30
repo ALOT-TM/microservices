@@ -1,8 +1,0 @@
-spring:
-  application:
-    name: subscription-service
-  cloud:
-    config:
-      uri: http://localhost:8081
-      fail-fast: false
-

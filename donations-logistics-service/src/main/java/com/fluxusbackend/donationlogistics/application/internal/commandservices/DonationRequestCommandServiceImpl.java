@@ -21,6 +21,13 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxusbackend.donationlogistics.infrastructure.clients.AuthAccessClient;
+import com.fluxusbackend.donationlogistics.infrastructure.clients.ShrinkageClient;
+import com.fluxusbackend.donationlogistics.infrastructure.clients.BeneficiaryInstitutionClient;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.events.NotificationEvent;
+import java.util.Map;
+import java.util.Objects;
+
 @Service
 public class DonationRequestCommandServiceImpl implements DonationRequestCommandService {
 
@@ -29,19 +36,28 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
     private final ExternalBeneficiaryService externalBeneficiaryService;
     private final StatusChangeLogService statusChangeLogService;
     private final RabbitTemplate rabbitTemplate;
+    private final AuthAccessClient authAccessClient;
+    private final ShrinkageClient shrinkageClient;
+    private final BeneficiaryInstitutionClient beneficiaryInstitutionClient;
 
     public DonationRequestCommandServiceImpl(
             DonationRequestRepository repository,
             ExternalShrinkageService externalShrinkageService,
             ExternalBeneficiaryService externalBeneficiaryService,
             StatusChangeLogService statusChangeLogService,
-            RabbitTemplate rabbitTemplate
+            RabbitTemplate rabbitTemplate,
+            AuthAccessClient authAccessClient,
+            ShrinkageClient shrinkageClient,
+            BeneficiaryInstitutionClient beneficiaryInstitutionClient
     ) {
         this.repository = repository;
         this.externalShrinkageService = externalShrinkageService;
         this.externalBeneficiaryService = externalBeneficiaryService;
         this.statusChangeLogService = statusChangeLogService;
         this.rabbitTemplate = rabbitTemplate;
+        this.authAccessClient = authAccessClient;
+        this.shrinkageClient = shrinkageClient;
+        this.beneficiaryInstitutionClient = beneficiaryInstitutionClient;
     }
 
     @Override
@@ -68,7 +84,39 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 .orElseThrow(() -> new IllegalArgumentException("Shrinkage does not have an associated company"));
 
         var request = new DonationRequest(shrinkageRef, beneficiaryRef, new CompanyId(companyId), command.notes());
-        return repository.save(request);
+        var saved = repository.save(request);
+
+        // Publish email notification (SOLICITADO) to Retail users
+        try {
+            var shrinkage = shrinkageClient.getShrinkage(saved.getShrinkageReferenceId().value());
+            var beneficiary = beneficiaryInstitutionClient.getBeneficiaryInstitution(saved.getBeneficiaryReferenceId().value());
+            String beneficiaryName = beneficiary != null ? beneficiary.name() : "ONG Asociada";
+            
+            var users = authAccessClient.listUsers();
+            for (var user : users) {
+                if ("RETAIL".equals(user.actor()) && Objects.equals(user.retailCompanyId(), saved.getCompanyId().value())) {
+                    rabbitTemplate.convertAndSend(
+                        "notification.events.exchange",
+                        "notification.email.solicitado",
+                        new NotificationEvent(
+                            user.email(),
+                            "SOLICITADO",
+                            saved.getId().toString(),
+                            shrinkage != null ? shrinkage.name() : "Lote de Merma",
+                            Map.of(
+                                "cantidad", shrinkage != null && shrinkage.quantity() != null ? shrinkage.quantity() + " unidades" : "N/A",
+                                "ong", beneficiaryName,
+                                "tienda", shrinkage != null && shrinkage.retailCompanyHeadquarterId() != null ? "Local #" + shrinkage.retailCompanyHeadquarterId() : "Local Principal"
+                            )
+                        )
+                    );
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error publishing SOLICITADO notification: " + e.getMessage());
+        }
+
+        return saved;
     }
 
     @Override
@@ -96,6 +144,35 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
                 RabbitMQConfig.REQUEST_ROUTING_KEY,
                 new DonationRequestAcceptedEvent(request.getShrinkageReferenceId().value())
         );
+
+        // Publish email notification (ASIGNADO) to Beneficiary users
+        try {
+            var shrinkage = shrinkageClient.getShrinkage(saved.getShrinkageReferenceId().value());
+            
+            var users = authAccessClient.listUsers();
+            for (var user : users) {
+                if ("BENEFICIARY".equals(user.actor()) && Objects.equals(user.beneficiaryInstitutionId(), saved.getBeneficiaryReferenceId().value())) {
+                    rabbitTemplate.convertAndSend(
+                        "notification.events.exchange",
+                        "notification.email.asignado",
+                        new NotificationEvent(
+                            user.email(),
+                            "ASIGNADO",
+                            saved.getId().toString(),
+                            shrinkage != null ? shrinkage.name() : "Lote de Merma",
+                            Map.of(
+                                "cantidad", shrinkage != null && shrinkage.quantity() != null ? shrinkage.quantity() + " unidades" : "N/A",
+                                "tienda", shrinkage != null && shrinkage.retailCompanyHeadquarterId() != null ? "Local #" + shrinkage.retailCompanyHeadquarterId() : "Local Principal",
+                                "horario", "Lunes a Viernes de 09:00 a 12:00"
+                            )
+                        )
+                    );
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error publishing ASIGNADO notification: " + e.getMessage());
+        }
+
         rejectOtherPendingRequests(request);
         return saved;
     }

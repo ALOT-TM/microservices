@@ -21,11 +21,8 @@ import java.util.List;
 public class ShrinkageReportController {
 
     private final ShrinkageRepository shrinkageRepository;
-    private final AuthorizationService authorizationService;
-
     public ShrinkageReportController(ShrinkageRepository shrinkageRepository, AuthorizationService authorizationService) {
         this.shrinkageRepository = shrinkageRepository;
-        this.authorizationService = authorizationService;
     }
 
     @GetMapping("/shrinkage-summary")
