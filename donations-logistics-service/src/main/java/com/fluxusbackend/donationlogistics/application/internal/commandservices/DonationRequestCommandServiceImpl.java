@@ -75,6 +75,10 @@ public class DonationRequestCommandServiceImpl implements DonationRequestCommand
             throw new IllegalStateException("Ya existe una solicitud para esta merma");
         }
 
+        if (externalShrinkageService.isShrinkageExpired(shrinkageRef.value())) {
+            throw new IllegalStateException("No se puede donar merma vencida (la fecha de vencimiento no debe ser anterior o igual al día de hoy)");
+        }
+
         var shrinkageStatus = externalShrinkageService.fetchShrinkageStatus(shrinkageRef.value());
         if (!"DONABLE".equals(shrinkageStatus)) {
             throw new IllegalStateException("Only donable shrinkages can receive requests");

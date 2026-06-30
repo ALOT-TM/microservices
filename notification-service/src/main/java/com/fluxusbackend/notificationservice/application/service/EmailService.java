@@ -63,7 +63,7 @@ public class EmailService {
             case SOLICITADO -> "🟠 Nueva Solicitud de Donación - Acción Requerida";
             case ASIGNADO -> "🟣 ¡Solicitud Aprobada! - Agenda tu Recojo";
             case EN_RIESGO -> "🔴 ALERTA CRÍTICA: Lote por Vencer - " + product;
-            case PASSWORD_RECOVERY -> "🔒 Restablece tu contraseña - Fluxus BERS";
+            case PASSWORD_RECOVERY -> "🔒 Restablece tu contraseña - Fluxus";
         };
     }
 
@@ -238,7 +238,7 @@ public class EmailService {
             <div class="wrapper">
                 <div class="container">
                     <div class="header">
-                        <h1>Fluxus BERS</h1>
+                        <h1>Fluxus</h1>
                     </div>
                     <div class="content">
                         <div class="badge">%s</div>
@@ -248,13 +248,12 @@ public class EmailService {
                         %s
                         
                         %s
-                        
                         <div class="button-container">
-                            <a href="http://localhost:5173" class="btn">Ir a la Plataforma</a>
+                            <a href="http://localhost:5173" class="btn" style="color: #ffffff !important; text-decoration: none;">Ir a la Plataforma</a>
                         </div>
                     </div>
                     <div class="footer">
-                        <p><strong>Fluxus BERS</strong> — Reducción de Mermas Alimenticias</p>
+                        <p><strong>Fluxus</strong> — Reducción de Mermas Alimenticias</p>
                         <p>Este es un correo automático. Por favor no respondas directamente a este mensaje.</p>
                         <p><a href="#">Centro de Ayuda</a> | <a href="#">Términos de Servicio</a></p>
                     </div>
@@ -339,7 +338,7 @@ public class EmailService {
             case SOLICITADO -> "Queremos informarte que una Organización No Gubernamental (ONG) ha enviado una solicitud formal para adquirir tu lote disponible de <strong>" + product + "</strong>. Por favor, revisa y aprueba esta solicitud.";
             case ASIGNADO -> "¡Excelentes noticias! Tu solicitud para el lote de merma <strong>" + product + "</strong> ha sido aprobada formalmente por el Retail. Ahora puedes proceder con la coordinación del recojo.";
             case EN_RIESGO -> "⚠️ <strong>Alerta de prioridad crítica:</strong> Se ha detectado que el lote de merma <strong>" + product + "</strong> está a menos de 3 días de su fecha de vencimiento y aún no ha sido recolectado. Es urgente coordinar su retiro inmediato.";
-            case PASSWORD_RECOVERY -> "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Fluxus BERS. Si tú no realizaste esta solicitud, puedes ignorar este correo de forma segura.";
+            case PASSWORD_RECOVERY -> "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Fluxus. Si tú no realizaste esta solicitud, puedes ignorar este correo de forma segura.";
         };
     }
 

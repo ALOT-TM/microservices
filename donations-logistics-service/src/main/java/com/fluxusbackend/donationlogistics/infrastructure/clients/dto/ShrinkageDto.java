@@ -6,6 +6,7 @@ public record ShrinkageDto(
         String status,
         String name,
         Integer quantity,
-        Long retailCompanyHeadquarterId
+        Long retailCompanyHeadquarterId,
+        java.time.LocalDate expirationDate
 ) {
 }

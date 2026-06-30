@@ -62,6 +62,10 @@ public class DonationCommandServiceImpl implements DonationCommandService {
         var beneficiary = externalBeneficiaryService.fetchBeneficiaryById(command.beneficiaryReferenceId().value())
                 .orElseThrow(() -> new NoSuchElementException("Beneficiary not found"));
 
+        if (externalShrinkageService.isShrinkageExpired(command.shrinkageReferenceId().value())) {
+            throw new IllegalStateException("No se puede donar merma vencida (la fecha de vencimiento no debe ser anterior o igual al día de hoy)");
+        }
+
         var status = externalShrinkageService.fetchShrinkageStatus(command.shrinkageReferenceId().value());
         if (!"DONABLE".equals(status) && !"IN_PROCESS".equals(status)) {
             throw new IllegalStateException("Shrinkage must be DONABLE or IN_PROCESS before registering donation");
