@@ -4,7 +4,6 @@ import com.fluxusbackend.authaccess.application.internal.services.AuthorizationS
 import com.fluxusbackend.authaccess.application.internal.services.RemoteReferenceValidator;
 import com.fluxusbackend.authaccess.domain.model.enums.UserActor;
 import com.fluxusbackend.authaccess.domain.model.aggregates.Role;
-import com.fluxusbackend.authaccess.domain.model.aggregates.Permission;
 import com.fluxusbackend.authaccess.domain.model.aggregates.RolePermission;
 import com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.PermissionRepository;
 import com.fluxusbackend.authaccess.infrastructure.persistence.jpa.repositories.RoleRepository;

@@ -1,5 +1,4 @@
 package com.fluxusbackend.authaccess.interfaces.rest.transform;
-
 import com.fluxusbackend.authaccess.domain.model.aggregates.UserAccount;
 import com.fluxusbackend.authaccess.domain.model.commands.RegisterUserCommand;
 import com.fluxusbackend.authaccess.domain.model.dto.AuthenticatedUser;
