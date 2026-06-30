@@ -16,6 +16,12 @@ import java.util.NoSuchElementException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fluxusbackend.donationlogistics.infrastructure.clients.AuthAccessClient;
+import com.fluxusbackend.donationlogistics.infrastructure.clients.ShrinkageClient;
+import com.fluxusbackend.donationlogistics.infrastructure.messaging.events.NotificationEvent;
+import java.util.Map;
+import java.util.Objects;
+
 @Service
 public class DonationCommandServiceImpl implements DonationCommandService {
 
@@ -25,6 +31,8 @@ public class DonationCommandServiceImpl implements DonationCommandService {
     private final com.fluxusbackend.shared.application.security.AclService aclService;
     private final StatusChangeLogService statusChangeLogService;
     private final RabbitTemplate rabbitTemplate;
+    private final AuthAccessClient authAccessClient;
+    private final ShrinkageClient shrinkageClient;
 
     public DonationCommandServiceImpl(
             DonationRepository repository,
@@ -32,7 +40,9 @@ public class DonationCommandServiceImpl implements DonationCommandService {
             ExternalBeneficiaryService externalBeneficiaryService,
             com.fluxusbackend.shared.application.security.AclService aclService,
             StatusChangeLogService statusChangeLogService,
-            RabbitTemplate rabbitTemplate
+            RabbitTemplate rabbitTemplate,
+            AuthAccessClient authAccessClient,
+            ShrinkageClient shrinkageClient
     ) {
         this.repository = repository;
         this.externalShrinkageService = externalShrinkageService;
@@ -40,6 +50,8 @@ public class DonationCommandServiceImpl implements DonationCommandService {
         this.aclService = aclService;
         this.statusChangeLogService = statusChangeLogService;
         this.rabbitTemplate = rabbitTemplate;
+        this.authAccessClient = authAccessClient;
+        this.shrinkageClient = shrinkageClient;
     }
 
     @Override
@@ -120,6 +132,35 @@ public class DonationCommandServiceImpl implements DonationCommandService {
                 fromStatus.name(),
                 donation.getStatus().name()
         );
+
+        // Publish email notification (RECOGIDO) to Retail users
+        try {
+            var shrinkage = shrinkageClient.getShrinkage(donation.getShrinkageReferenceId().value());
+            
+            var users = authAccessClient.listUsers();
+            for (var user : users) {
+                if ("RETAIL".equals(user.actor()) && Objects.equals(user.retailCompanyId(), donation.getCompanyId().map(com.fluxusbackend.shared.domain.model.valueobjects.CompanyId::value).orElse(null))) {
+                    rabbitTemplate.convertAndSend(
+                        "notification.events.exchange",
+                        "notification.email.recogido",
+                        new NotificationEvent(
+                            user.email(),
+                            "RECOGIDO",
+                            donation.getDonationId().value().toString(),
+                            shrinkage != null ? shrinkage.name() : "Lote de Merma",
+                            Map.of(
+                                "cantidad", donation.getQuantity() != null ? donation.getQuantity().amount() + " unidades" : "N/A",
+                                "tienda", shrinkage != null && shrinkage.retailCompanyHeadquarterId() != null ? "Local #" + shrinkage.retailCompanyHeadquarterId() : "Local Principal",
+                                "fecha", command.pickupConfirmationDate().value().toString()
+                            )
+                        )
+                    );
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error publishing RECOGIDO notification: " + e.getMessage());
+        }
+
         return donation;
     }
 }

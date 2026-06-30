@@ -4,6 +4,8 @@ public record ShrinkageDto(
         Long shrinkageId,
         Long companyId,
         String status,
-        String name
+        String name,
+        Integer quantity,
+        Long retailCompanyHeadquarterId
 ) {
 }
