@@ -143,6 +143,9 @@ public class Shrinkage extends AuditableAggregateRoot implements CompanyScoped {
         if (status != ShrinkageStatus.NONE && status != ShrinkageStatus.NOT_DONABLE && status != ShrinkageStatus.IN_PROCESS) {
             throw new IllegalStateException("Shrinkage must be NONE, NOT_DONABLE or IN_PROCESS before marking donable");
         }
+        if (expirationDate != null && (expirationDate.isBefore(LocalDate.now()) || expirationDate.isEqual(LocalDate.now()))) {
+            throw new IllegalStateException("No se puede donar merma vencida (la fecha de vencimiento no debe ser anterior o igual al día de hoy)");
+        }
         status = ShrinkageStatus.DONABLE;
     }
 

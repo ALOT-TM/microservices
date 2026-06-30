@@ -171,7 +171,9 @@ public class ShrinkageController {
                         if (status != ShrinkageStatus.DONABLE) {
                                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Status not available");
                         }
-                        return queryService.handle(new ListShrinkagesByStatusQuery(ShrinkageStatus.DONABLE));
+                        return queryService.handle(new ListShrinkagesByStatusQuery(ShrinkageStatus.DONABLE)).stream()
+                                .filter(shrinkage -> shrinkage.getExpirationDate() == null || shrinkage.getExpirationDate().isAfter(java.time.LocalDate.now()))
+                                .toList();
                 }
                 var currentCompany = authorizationService.getCurrentUserCompanyId();
                 if (companyId != null && !companyId.equals(currentCompany.value())) {
@@ -200,7 +202,9 @@ public class ShrinkageController {
     private List<Shrinkage> listDonableForViewerInternal(Long companyId) {
         var actor = authorizationService.getCurrentUserActor();
         if (actor == UserActor.BENEFICIARY) {
-            return queryService.handle(new ListShrinkagesByStatusQuery(ShrinkageStatus.DONABLE));
+            return queryService.handle(new ListShrinkagesByStatusQuery(ShrinkageStatus.DONABLE)).stream()
+                .filter(shrinkage -> shrinkage.getExpirationDate() == null || shrinkage.getExpirationDate().isAfter(java.time.LocalDate.now()))
+                .toList();
         }
 
                 var currentCompany = authorizationService.getCurrentUserCompanyId();
@@ -210,6 +214,7 @@ public class ShrinkageController {
                 var resolvedCompanyId = companyId == null ? currentCompany : new CompanyId(companyId);
         return queryService.handle(new ListShrinkagesByCompanyQuery(resolvedCompanyId)).stream()
                 .filter(shrinkage -> shrinkage.getStatus() == ShrinkageStatus.DONABLE)
+                .filter(shrinkage -> shrinkage.getExpirationDate() == null || shrinkage.getExpirationDate().isAfter(java.time.LocalDate.now()))
                 .toList();
     }
 }

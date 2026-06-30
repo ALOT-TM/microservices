@@ -24,6 +24,17 @@ public class ExternalShrinkageService {
         }
     }
 
+    public boolean isShrinkageExpired(Long shrinkageId) {
+        try {
+            var shrinkage = shrinkageClient.getShrinkage(shrinkageId);
+            if (shrinkage == null) return false;
+            var expirationDate = shrinkage.expirationDate();
+            return expirationDate != null && !expirationDate.isAfter(java.time.LocalDate.now());
+        } catch (FeignException.NotFound ex) {
+            return false;
+        }
+    }
+
     public Optional<Long> fetchShrinkageCompanyId(Long shrinkageId) {
         try {
             var shrinkage = shrinkageClient.getShrinkage(shrinkageId);
