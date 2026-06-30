@@ -21,9 +21,7 @@ import org.springframework.stereotype.Service;
 import com.fluxusbackend.shrinkage.infrastructure.clients.AuthAccessClient;
 import com.fluxusbackend.shrinkage.infrastructure.messaging.events.NotificationEvent;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class ShrinkageCommandServiceImpl implements ShrinkageCommandService {
