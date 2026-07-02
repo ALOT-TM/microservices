@@ -27,6 +27,12 @@ public record RegisterUserCommand(
         if (rawPassword.isBlank() || rawPassword.length() < 6) {
             throw new IllegalArgumentException("Password must be at least 6 characters");
         }
+        if (!rawPassword.matches(".*[^a-zA-Z0-9].*")) {
+            throw new IllegalArgumentException("Password must contain at least one special character");
+        }
+        if (username.trim().length() < 3 || username.trim().length() > 50) {
+            throw new IllegalArgumentException("Username must be between 3 and 50 characters");
+        }
         if (actor == UserActor.RETAIL) {
             if (retailCompanyId == null) {
                 throw new IllegalArgumentException("Retail company id is required for RETAIL users");

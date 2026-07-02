@@ -33,6 +33,12 @@ public record RegisterShrinkageCommand(
         if (name.isBlank()) {
             throw new IllegalArgumentException("Name is required");
         }
+        if (name.trim().length() > 50) {
+            throw new IllegalArgumentException("Name must not exceed 50 characters");
+        }
+        if (specificReason != null && specificReason.trim().length() > 50) {
+            throw new IllegalArgumentException("Specific reason must not exceed 50 characters");
+        }
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }

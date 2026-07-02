@@ -13,5 +13,11 @@ public record ChangePasswordCommand(Long userId, String currentPassword, String 
         if (newPassword.isBlank()) {
             throw new IllegalArgumentException("New password cannot be empty");
         }
+        if (newPassword.length() < 6) {
+            throw new IllegalArgumentException("New password must be at least 6 characters");
+        }
+        if (!newPassword.matches(".*[^a-zA-Z0-9].*")) {
+            throw new IllegalArgumentException("New password must contain at least one special character");
+        }
     }
 }
